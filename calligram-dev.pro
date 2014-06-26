@@ -1,6 +1,7 @@
 TEMPLATE = subdirs
 
-SUBDIRS += tool
+SUBDIRS += tool \
+    parameterizer
 
 SUBDIRS += voronoi
 SUBDIRS += voronoi-tester

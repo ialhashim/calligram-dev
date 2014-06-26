@@ -6,7 +6,7 @@
 /* Adapted from https://github.com/sakri/MarchingSquaresJS */
 struct MarchingSquares
 {
-	typedef Eigen::Vector2d PixelType;
+	typedef Eigen::Matrix<double,2,1,Eigen::DontAlign> PixelType;
 	enum Direction{ NONE, UP, LEFT, DOWN, RIGHT };
 
 	Eigen::MatrixXd image;
