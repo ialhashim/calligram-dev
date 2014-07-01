@@ -3,8 +3,11 @@
 #include <QPainter>
 #include <QFileInfo>
 #include <QTextStream>
+#include "iostream"
 
 #include "trianglelib.h"
+
+using namespace std;
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWindow)
 {
@@ -19,7 +22,7 @@ MainWindow::~MainWindow()
 
 PaintWidget::PaintWidget(QWidget * parent) : QWidget(parent)
 {
-    QString defaultFile = "points.txt";
+    QString defaultFile = "../points.txt";
 
     QPolygonF points;
 
@@ -59,7 +62,7 @@ PaintWidget::PaintWidget(QWidget * parent) : QWidget(parent)
 		tri << QPointF( mesh.vertices[triangle[1]][0], mesh.vertices[triangle[1]][1] );
 		tri << QPointF( mesh.vertices[triangle[2]][0], mesh.vertices[triangle[2]][1] );
 
-		triangles.push_back( tri );
+        triangles.push_back( tri );
 	}
 }
 
