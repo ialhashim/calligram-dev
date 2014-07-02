@@ -27,7 +27,7 @@ public:
 
 	bool scribbling;
 	QPoint lastPoint;
-	QVector<QPainterPath> paths;
+	QVector<QPolygonF> paths;
     QVector<QPainterPath> contours;
     QVector<QPainterPath> tangents;
     QVector<QPainterPath> intersections;

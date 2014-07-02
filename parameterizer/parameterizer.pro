@@ -11,6 +11,8 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 TARGET = parameterizer
 TEMPLATE = app
 
+# For Eigen
+INCLUDEPATH += . ..
 
 SOURCES += main.cpp\
         mainwindow.cpp \
