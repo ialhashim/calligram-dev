@@ -205,7 +205,6 @@ void Viewer::paintEvent(QPaintEvent *)
         {
             painter.drawPoint(cpf[i]);
         }
-        cout<<"contour: "<<cpf.count()<<endl;
     }
     QPainterPath path;
     for (auto & poly : paths)
@@ -239,7 +238,6 @@ void Viewer::paintEvent(QPaintEvent *)
         {
             painter.drawPoint(ppf[i]);
         }
-        cout<<"path: "<<ppf.count()<<endl;
     }
     //inner sample
     if(!paths.empty())
