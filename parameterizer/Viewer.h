@@ -29,8 +29,6 @@ public:
 	QPoint lastPoint;
 	QVector<QPolygonF> paths;
     QVector<QPainterPath> contours;
-    QVector<QPainterPath> tangents;
-    QVector<QPainterPath> intersections;
 
 	QString message;
 private:

@@ -12,8 +12,8 @@
 using namespace std;
 
 // Eigen library
-#include <Eigen/Core>
-#include <Eigen/Geometry>
+#include "../Eigen/Core"
+#include "../Eigen/Geometry"
 using namespace Eigen;
 typedef Vector2d Vector2;
 
@@ -148,13 +148,13 @@ Viewer::~Viewer()
 void Viewer::paintEvent(QPaintEvent *)
 {
 	QPainter painter(this);
-	painter.setRenderHint(QPainter::Antialiasing);
+    //painter.setRenderHint(QPainter::Antialiasing);
 
 	if(contours.empty()) return;
 
-	for (auto & c : contours)
+    for (auto & contour : contours)
 	{
-		painter.drawPath(c);
+        painter.drawPath(contour);
 	}
 
 	painter.setPen(QPen(Qt::green, 4));
@@ -163,134 +163,197 @@ void Viewer::paintEvent(QPaintEvent *)
 		painter.drawPolyline(path);
 	}
 
-	for (auto & polygon : paths)
-	{
-		QVector<double> distancesTop, distancesBottom;
+    //outer sample
+    QVector<QPointF> cpf, cqf, cmf, ppf, pqf, pmf;
 
-		QPainterPath path;
-		path.addPolygon(polygon);
+    int samplesCount = 60;
 
-		int samplesCount = 60;
+    QPolygonF tangents;
 
-		auto pathLen = path.length();
-		auto stepSize = pathLen / samplesCount;
+    int pointSize = 4;
+    int lineWidth = 2;
 
-		QPolygonF tangents;
+    int outside = 150;
 
-		int pointSize = 4;
-		int lineWidth = 2;
+    for (auto & contour : contours)
+    {
+        auto contourLen = contour.length();
+        auto stepSize = contourLen / samplesCount;
+        for(int i = 0; i <= samplesCount; i++)
+        {
+            // Current point
+            QPointF pf = contour.pointAtPercent(contour.percentAtLength( stepSize * i ));
+            cpf.push_back(pf);
 
-		int outside = 200;
+            // Next point
+            if(i < samplesCount-1)
+            {
+                QPointF qf = contour.pointAtPercent(contour.percentAtLength( stepSize * (i+1) ));
+                cqf.push_back(qf);
+            }
+            else
+            {
+                QPointF mf = contour.pointAtPercent(contour.percentAtLength( stepSize * (i-1) ));
+                QPointF qf = (1 * (pf-mf)) + pf;
+                cmf.push_back(mf);
+                cqf.pop_back();
+                cqf.push_back(qf);
+            }
+        }
+        painter.setPen(QPen(Qt::red, pointSize));
+        for (int i = 0; i < samplesCount; ++i)
+        {
+            painter.drawPoint(cpf[i]);
+        }
+        cout<<"contour: "<<cpf.count()<<endl;
+    }
+    QPainterPath path;
+    for (auto & poly : paths)
+    {
+        path.addPolygon(poly);
+        auto pathLen = path.length();
+        auto stepSize = 2 * pathLen / samplesCount;
+        for(int i = 0; i <= samplesCount / 2; i++)
+        {
+            // Current point
+            QPointF pf = path.pointAtPercent(path.percentAtLength( stepSize * i ));
+            ppf.push_back(pf);
 
-		for(int i = 0; i <= samplesCount; i++)
-		{
-			QPointF pf, qf, mf;
+            // Next point
+            if(i < (samplesCount / 2) -1)
+            {
+                QPointF qf = path.pointAtPercent(path.percentAtLength( stepSize * (i+1) ));
+                pqf.push_back(qf);
+            }
+            else
+            {
+                QPointF mf = path.pointAtPercent(path.percentAtLength( stepSize * (i-1) ));
+                QPointF qf = (1 * (pf-mf)) + pf;
+                pmf.push_back(mf);
+                pqf.pop_back();
+                pqf.push_back(qf);
+            }
+        }
+        painter.setPen(QPen(Qt::blue, pointSize));
+        for (int i = 0; i < samplesCount / 2; ++i)
+        {
+            painter.drawPoint(ppf[i]);
+        }
+        cout<<"path: "<<ppf.count()<<endl;
+    }
+    //inner sample
+    if(!paths.empty())
+    {
+        double minLength = sqrt(pow((ppf[0].x() - cpf[0].x()), 2) + pow((ppf[0].y() - cpf[0].y()), 2));
+        int nearestPoint = 0;
+        for (int i = 1; i < samplesCount; ++i)
+        {
+            double currentLength = sqrt(pow((ppf[0].x() - cpf[i].x()), 2) + pow((ppf[0].y() - cpf[i].y()), 2));
+            if (minLength > currentLength)
+            {
+                minLength = currentLength;
+                nearestPoint = i;
+            }
+        }
+        int innerSamplesCount = 5;
 
-			// Current point
-			pf = path.pointAtPercent(path.percentAtLength( stepSize * i ));
-			
-			// Next point
-			if(i < samplesCount-1) 
-			{
-				qf = path.pointAtPercent(path.percentAtLength( stepSize * (i+1) ));
-			}
-			else
-			{
-				mf = path.pointAtPercent(path.percentAtLength( stepSize * (i-1) ));
-				qf = (1 * (pf-mf)) + pf;
-			}
+        //why nearestPoint is changing?
 
-			painter.setPen(QPen(Qt::red, pointSize));
-			painter.drawPoint(pf);
+        bool increase = true;
+        int p = 0, c = nearestPoint;
+        for (int k = 0; k < samplesCount; ++k)
+        {
+            if (p == samplesCount / 2)
+            {
+                increase = false;
+            }
 
-			Vector2 p(pf.x(),pf.y()), q(qf.x(),qf.y());
+            if (c == samplesCount)
+            {
+                c = 0;
+            }
 
-			if( (q-p).norm() < 1e-5 ) continue; // Segment too short
+            QVector<QPointF> icpf, icqf, icmf, ippf, ipqf, ipmf;
 
-			Vector2 t( (q-p).normalized() );
+            QPainterPath subPath(ppf[p]);
+            if (increase)
+            {
+                subPath.lineTo(ppf[p+1]);
+            }
+            else
+            {
+                subPath.lineTo(ppf[p-1]);
+            }
+            auto pathLen = subPath.length();
+            auto pathStepSize = pathLen / innerSamplesCount;
 
-			q = p + t * (p-q).norm();
+            QPainterPath subContour(cpf[c]);
+            subContour.lineTo(cpf[c+1]);
+            auto contourLen = subContour.length();
+            auto contStepSize = contourLen / innerSamplesCount;
 
-			painter.setPen(QPen(Qt::blue, lineWidth * 0.5));
-			painter.drawLine( p.x(), p.y(), q.x(), q.y() );
 
-			Rotation2D<double> rot( M_PI_2 );
-			Vector2 w = rot * t;
-			Vector2 u1 = p + w * outside;
-			Vector2 u2 = p + w * -outside;
+            for(int i = 0; i <= innerSamplesCount; i++)
+            {
+                // Current point
+                QPointF pf = subContour.pointAtPercent(subContour.percentAtLength( contStepSize * i ));
+                icpf.push_back(pf);
 
-			painter.setPen(QPen(QColor(255,255,0,80), lineWidth));
-			painter.drawLine( p.x(), p.y(), u1.x(), u1.y());
-			painter.drawLine( p.x(), p.y(), u2.x(), u2.y());
+                // Next point
+                if(i < innerSamplesCount-1)
+                {
+                    QPointF qf = subContour.pointAtPercent(subContour.percentAtLength( contStepSize * (i+1) ));
+                    icqf.push_back(qf);
+                }
+                else
+                {
+                    QPointF mf = subContour.pointAtPercent(subContour.percentAtLength( contStepSize * (i-1) ));
+                    QPointF qf = (1 * (pf-mf)) + pf;
+                    icmf.push_back(mf);
+                    icqf.pop_back();
+                    icqf.push_back(qf);
+                }
 
-			QPainterPath cont = contours.front();
-			QPointF isect;
-			QLineF raySegment1( p.x(), p.y(), u1.x(), u1.y() );
-			QLineF raySegment2( p.x(), p.y(), u2.x(), u2.y() );
+                pf = subPath.pointAtPercent(subPath.percentAtLength( pathStepSize * i ));
+                ippf.push_back(pf);
 
-			if( isIntersect(raySegment1, cont, isect) )
-			{
-				painter.setPen(QPen(Qt::red, 5));
-				painter.drawPoint( isect );
+                // Next point
+                if(i < innerSamplesCount-1)
+                {
+                    QPointF qf = subPath.pointAtPercent(subPath.percentAtLength( pathStepSize * (i+1) ));
+                    ipqf.push_back(qf);
+                }
+                else
+                {
+                    QPointF mf = subPath.pointAtPercent(subPath.percentAtLength( pathStepSize * (i-1) ));
+                    QPointF qf = (1 * (pf-mf)) + pf;
+                    ipmf.push_back(mf);
+                    ipqf.pop_back();
+                    ipqf.push_back(qf);
+                }
+                QLineF raySegment( icpf[i].x(), icpf[i].y(), ippf[i].x(), ippf[i].y() );
+                painter.setPen(QPen(Qt::blue, lineWidth * 0.5));
+                painter.drawLine(raySegment);
+            }
+            painter.setPen(QPen(Qt::yellow, pointSize));
+            for (int i = 0; i < innerSamplesCount; ++i)
+            {
+                painter.drawPoint(icpf[i]);
+                painter.drawPoint(ippf[i]);
+            }
 
-				distancesBottom.push_back( (p - Vector2(isect.x(), isect.y())).norm() );
-			}
+            if (increase)
+            {
+                p++;
+            }
+            else if ( p - 1 >= 0)
+            {
+                p--;
+            }
 
-			if( isIntersect(raySegment2, cont, isect) )
-			{
-				painter.setPen(QPen(Qt::green, 5));
-				painter.drawPoint( isect );
-
-				distancesTop.push_back( (p - Vector2(isect.x(), isect.y())).norm() );
-			}
-		}
-
-		// Draw the function
-		QPainterPath f1, f2;
-
-		int width = 300;
-		int height = 100;
-
-		double minf1 = *std::min_element(distancesBottom.begin(), distancesBottom.end());
-		double minf2 = *std::min_element(distancesTop.begin(), distancesTop.end());
-		
-		double maxf1 = *std::max_element(distancesBottom.begin(), distancesBottom.end());
-		double maxf2 = *std::max_element(distancesTop.begin(), distancesTop.end());
-
-		QLineF l1(50,50,50+width,50);
-		QLineF l2 = l1.translated( QPointF(width,0) );
-
-		f1.moveTo(l1.p1());
-		f2.moveTo(l2.p1());
-
-		size_t N = std::min(distancesTop.size(), distancesBottom.size());
-
-		for(size_t i = 0; i < N; i++)
-		{
-			double t = double(i) / (distancesTop.size()-1);
-
-			// Normalized
-			//double v1 = (distancesTop[i] - minf1) / (maxf1-minf1);
-			//double v2 = (distancesBottom[i] - minf2) / (maxf2-minf2);
-
-			double v1 = distancesTop[i] / 50;
-			double v2 = distancesBottom[i] / 50;
-
-			QPointF p1 = l1.pointAt(t);
-			QPointF p2 = l2.pointAt(t);
-
-			f1.lineTo( p1 - QPoint(0,v1 * height)  );
-			f2.lineTo( p2 - QPoint(0,v2 * height)  );
-		}
-
-		painter.translate(0, 600);
-
-		painter.setPen(QPen(Qt::green, 2));
-		painter.drawPath(f1);
-
-		painter.setPen(QPen(Qt::red, 2));
-		painter.drawPath(f2);
-	}
+            c++;
+        }
+    }
 }
 void Viewer::keyPressEvent(QKeyEvent *event)
 {
@@ -350,10 +413,134 @@ void Viewer::mouseMoveEvent(QMouseEvent *event)
 
 void Viewer::reduceDimention()
 {
-	qreal test;
-	for (auto p : paths)
-	{
-		//test = p.angleAtPercent(0.5);
-		cout<<"test:"<<test<<endl;
-	}
+    /*
+        for (auto & polygon : paths)
+        {
+            QVector<double> distancesTop, distancesBottom;
+
+            QPainterPath path;
+            path.addPolygon(polygon);
+
+            int samplesCount = 60;
+
+            auto pathLen = path.length();
+            auto stepSize = pathLen / samplesCount;
+
+            QPolygonF tangents;
+
+            int pointSize = 4;
+            int lineWidth = 2;
+
+            int outside = 200;
+
+            for(int i = 0; i <= samplesCount; i++)
+            {
+                QPointF pf, qf, mf;
+
+                // Current point
+                pf = path.pointAtPercent(path.percentAtLength( stepSize * i ));
+
+                // Next point
+                if(i < samplesCount-1)
+                {
+                    qf = path.pointAtPercent(path.percentAtLength( stepSize * (i+1) ));
+                }
+                else
+                {
+                    mf = path.pointAtPercent(path.percentAtLength( stepSize * (i-1) ));
+                    qf = (1 * (pf-mf)) + pf;
+                }
+
+                painter.setPen(QPen(Qt::red, pointSize));
+                painter.drawPoint(pf);
+
+                Vector2 p(pf.x(),pf.y()), q(qf.x(),qf.y());
+
+                if( (q-p).norm() < 1e-5 ) continue; // Segment too short
+
+                Vector2 t( (q-p).normalized() );
+
+                q = p + t * (p-q).norm();
+
+                painter.setPen(QPen(Qt::blue, lineWidth * 0.5));
+                painter.drawLine( p.x(), p.y(), q.x(), q.y() );
+
+                Rotation2D<double> rot( M_PI_2 );
+                Vector2 w = rot * t;
+                Vector2 u1 = p + w * outside;
+                Vector2 u2 = p + w * -outside;
+
+                painter.setPen(QPen(QColor(255,255,0,80), lineWidth));
+                painter.drawLine( p.x(), p.y(), u1.x(), u1.y());
+                painter.drawLine( p.x(), p.y(), u2.x(), u2.y());
+
+                QPainterPath cont = contours.front();
+                QPointF isect;
+                QLineF raySegment1( p.x(), p.y(), u1.x(), u1.y() );
+                QLineF raySegment2( p.x(), p.y(), u2.x(), u2.y() );
+
+                if( isIntersect(raySegment1, cont, isect) )
+                {
+                    painter.setPen(QPen(Qt::red, 5));
+                    painter.drawPoint( isect );
+
+                    distancesBottom.push_back( (p - Vector2(isect.x(), isect.y())).norm() );
+                }
+
+                if( isIntersect(raySegment2, cont, isect) )
+                {
+                    painter.setPen(QPen(Qt::green, 5));
+                    painter.drawPoint( isect );
+
+                    distancesTop.push_back( (p - Vector2(isect.x(), isect.y())).norm() );
+                }
+            }
+
+            // Draw the function
+            QPainterPath f1, f2;
+
+            int width = 300;
+            int height = 100;
+
+            double minf1 = *std::min_element(distancesBottom.begin(), distancesBottom.end());
+            double minf2 = *std::min_element(distancesTop.begin(), distancesTop.end());
+
+            double maxf1 = *std::max_element(distancesBottom.begin(), distancesBottom.end());
+            double maxf2 = *std::max_element(distancesTop.begin(), distancesTop.end());
+
+            QLineF l1(50,50,50+width,50);
+            QLineF l2 = l1.translated( QPointF(width,0) );
+
+            f1.moveTo(l1.p1());
+            f2.moveTo(l2.p1());
+
+            size_t N = std::min(distancesTop.size(), distancesBottom.size());
+
+            for(size_t i = 0; i < N; i++)
+            {
+                double t = double(i) / (distancesTop.size()-1);
+
+                // Normalized
+                //double v1 = (distancesTop[i] - minf1) / (maxf1-minf1);
+                //double v2 = (distancesBottom[i] - minf2) / (maxf2-minf2);
+
+                double v1 = distancesTop[i] / 50;
+                double v2 = distancesBottom[i] / 50;
+
+                QPointF p1 = l1.pointAt(t);
+                QPointF p2 = l2.pointAt(t);
+
+                f1.lineTo( p1 - QPoint(0,v1 * height)  );
+                f2.lineTo( p2 - QPoint(0,v2 * height)  );
+            }
+
+            painter.translate(0, 600);
+
+            painter.setPen(QPen(Qt::green, 2));
+            painter.drawPath(f1);
+
+            painter.setPen(QPen(Qt::red, 2));
+            painter.drawPath(f2);
+        }*/
+
 }
