@@ -29,6 +29,8 @@ public:
 	QPoint lastPoint;
 	QVector<QPolygonF> paths;
     QVector<QPainterPath> contours;
+    QVector<qreal> angles;
+    QVector<qreal> lengths;
 
 	QString message;
 private:

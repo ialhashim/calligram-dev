@@ -168,9 +168,10 @@ void Viewer::paintEvent(QPaintEvent *)
 
     if(!paths.empty())
     {
+        // Find starting and ending point on the contour
         QPainterPath path1;
         QPointF isect_start, isect_end;
-        double t_s = 0.0, t_e = 0.0;
+        double t_s = 0.0, t_e = 0.5;
         for (auto & poly : paths)
         {
             path1.addPolygon(poly);
@@ -186,8 +187,8 @@ void Viewer::paintEvent(QPaintEvent *)
             Vector2 t_start( (q_start-p_start).normalized());
             Vector2 t_end( (q_end-p_end).normalized());
 
-            q_start = p_start + t_start * (p_start-q_start).norm();
-            q_end = p_end + t_end * (p_end-q_end).norm();
+            //q_start = p_start + t_start * (p_start-q_start).norm();
+            //q_end = p_end + t_end * (p_end-q_end).norm();
 
             Vector2 u1 = p_start - t_start * 200;
             Vector2 u2 = p_end + t_end * 200;
@@ -214,7 +215,7 @@ void Viewer::paintEvent(QPaintEvent *)
             }
         }
 
-        //outer sample
+        // Sample the contour
         QVector<QPointF> cpf1, cpf2, cqf, cmf, ppf, pqf, pmf;
 
         int samplesCount = 100;
@@ -249,7 +250,7 @@ void Viewer::paintEvent(QPaintEvent *)
                 cpf1.push_back(pf);
 
                 // Next point
-                if(i < samplesCount-1)
+                /*if(i < samplesCount-1)
                 {
                     QPointF qf = contour.pointAtPercent(thisStep);
                     cqf.push_back(qf);
@@ -261,7 +262,7 @@ void Viewer::paintEvent(QPaintEvent *)
                     cmf.push_back(mf);
                     cqf.pop_back();
                     cqf.push_back(qf);
-                }
+                }*/
             }
             painter.setPen(QPen(Qt::red, pointSize));
             for (int i = 0; i < samplesCount; ++i)
@@ -282,7 +283,7 @@ void Viewer::paintEvent(QPaintEvent *)
                 cpf2.push_back(pf);
 
                 // Next point
-                if(i < samplesCount-1)
+                /*if(i < samplesCount-1)
                 {
                     QPointF qf = contour.pointAtPercent(thisStep);
                     cqf.push_back(qf);
@@ -294,7 +295,7 @@ void Viewer::paintEvent(QPaintEvent *)
                     cmf.push_back(mf);
                     cqf.pop_back();
                     cqf.push_back(qf);
-                }
+                }*/
             }
             painter.setPen(QPen(Qt::yellow, pointSize));
             for (int i = 0; i < samplesCount; ++i)
@@ -302,12 +303,15 @@ void Viewer::paintEvent(QPaintEvent *)
                 painter.drawPoint(cpf2[i]);
             }
         }
+
+        // Sample the path drawn by user
         QPainterPath path;
+        double stepSize;
         for (auto & poly : paths)
         {
             path.addPolygon(poly);
             auto pathLen = path.length();
-            auto stepSize = pathLen / samplesCount;
+            stepSize = pathLen / samplesCount;
             for(int i = 0; i <= samplesCount; i++)
             {
                 // Current point
@@ -334,159 +338,69 @@ void Viewer::paintEvent(QPaintEvent *)
             {
                 painter.drawPoint(ppf[i]);
             }
-
         }
+        // Store the angle and length in the vector
         for(int i = 0; i < samplesCount; i++)
         {
             if (reverse == false)
             {
                 QLineF raySegment1 ( cpf1[i].x(), cpf1[i].y(), ppf[i].x(), ppf[i].y() );
+                QLineF lineSegment1 ( ppf[i].x(), ppf[i].y(), ppf[i+1].x(), ppf[i+1].y() );
+                angles.push_back(raySegment1.angle() - lineSegment1.angle());
+                lengths.push_back(raySegment1.length());
                 painter.setPen(QPen(Qt::blue, lineWidth * 0.5));
                 painter.drawLine(raySegment1);
 
-                QLineF raySegment2( cpf2[i].x(), cpf2[i].y(), ppf[samplesCount - i].x(), ppf[samplesCount - i].y() );
+                QLineF raySegment2( cpf2[samplesCount - i].x(), cpf2[samplesCount - i].y(), ppf[i].x(), ppf[i].y() );
+                QLineF lineSegment2 ( ppf[i].x(), ppf[i].y(), ppf[i+1].x(), ppf[i+1].y() );
+                angles.push_back(raySegment2.angle() - lineSegment2.angle());
+                lengths.push_back(raySegment2.length());
                 painter.setPen(QPen(Qt::yellow, lineWidth * 0.5));
                 painter.drawLine(raySegment2);
             }
             else
             {
-                QLineF raySegment1 ( cpf1[i].x(), cpf1[i].y(), ppf[samplesCount - i].x(), ppf[samplesCount - i].y() );
+                QLineF raySegment1 ( cpf1[samplesCount - i].x(), cpf1[samplesCount - i].y(), ppf[i].x(), ppf[i].y() );
+                QLineF lineSegment1 ( ppf[i].x(), ppf[i].y(), ppf[i+1].x(), ppf[i+1].y() );
+                angles.push_back(raySegment1.angle() - lineSegment1.angle());
+                lengths.push_back(raySegment1.length());
                 painter.setPen(QPen(Qt::blue, lineWidth * 0.5));
                 painter.drawLine(raySegment1);
 
-                QLineF raySegment2( cpf2[i].x(), cpf2[i].y(), ppf[i].x(), ppf[i].y() );
+                QLineF raySegment2( cpf2[i].x(), cpf2[i].y(), ppf[i].x(), ppf[i].y() );                
+                QLineF lineSegment2 ( ppf[i].x(), ppf[i].y(), ppf[i+1].x(), ppf[i+1].y() );
+                angles.push_back(raySegment2.angle() - lineSegment2.angle());
+                lengths.push_back(raySegment2.length());
                 painter.setPen(QPen(Qt::yellow, lineWidth * 0.5));
                 painter.drawLine(raySegment2);
             }
         }
-    }
-/*
-    double minLength = sqrt(pow((ppf[0].x() - cpf[0].x()), 2) + pow((ppf[0].y() - cpf[0].y()), 2));
-    int startingPoint = 0;
-    for (int i = 1; i < samplesCount; ++i)
-    {
-        double currentLength = sqrt(pow((ppf[0].x() - cpf[i].x()), 2) + pow((ppf[0].y() - cpf[i].y()), 2));
-        if (minLength > currentLength)
+
+        // Draw the lines given its angle and vector
+        for (int i = 0; i < samplesCount * 2; i = i+2)
         {
-            minLength = currentLength;
-            startingPoint = i;
+            QLineF angleline;
+
+            // Set the origin:
+            angleline.setP1(QPointF(500+stepSize*i,500));
+
+            // Set the angle and length:
+            angleline.setAngle(angles[i]);
+            angleline.setLength(lengths[i]);
+
+            // Draw the line:
+            painter.setPen(QPen(Qt::red, lineWidth * 0.5));
+            painter.drawLine(angleline);
+
+            // Set the angle and length:
+            angleline.setAngle(-angles[i+1]);
+            angleline.setLength(lengths[i+1]);
+
+            // Draw the line:
+            painter.setPen(QPen(Qt::red, lineWidth * 0.5));
+            painter.drawLine(angleline);
         }
     }
-
-    minLength = sqrt(pow((ppf[ppf.count()-1].x() - cpf[0].x()), 2) + pow((ppf[ppf.count()-1].y() - cpf[0].y()), 2));
-    int endPoint = 0;
-    for (int i = 1; i < samplesCount; ++i)
-    {
-        double currentLength = sqrt(pow((ppf[ppf.count()-1].x() - cpf[i].x()), 2) + pow((ppf[ppf.count()-1].y() - cpf[i].y()), 2));
-        if (minLength > currentLength)
-        {
-            minLength = currentLength;
-            endPoint = i;
-        }
-    }
-    //inner sample
-    if(!paths.empty())
-    {
-
-        int innerSamplesCount = 5;
-
-        //why nearestPoint is changing?
-
-        bool increase = true;
-        int p = 0, c = nearestPoint;
-        for (int k = 0; k < samplesCount; ++k)
-        {
-            if (p == samplesCount / 2)
-            {
-                increase = false;
-            }
-
-            if (c == samplesCount)
-            {
-                c = 0;
-            }
-
-            QVector<QPointF> icpf, icqf, icmf, ippf, ipqf, ipmf;
-
-            QPainterPath subPath(ppf[p]);
-            if (increase)
-            {
-                subPath.lineTo(ppf[p+1]);
-            }
-            else
-            {
-                subPath.lineTo(ppf[p-1]);
-            }
-            auto pathLen = subPath.length();
-            auto pathStepSize = pathLen / innerSamplesCount;
-
-            QPainterPath subContour(cpf[c]);
-            subContour.lineTo(cpf[c+1]);
-            auto contourLen = subContour.length();
-            auto contStepSize = contourLen / innerSamplesCount;
-
-
-            for(int i = 0; i <= innerSamplesCount; i++)
-            {
-                // Current point
-                QPointF pf = subContour.pointAtPercent(subContour.percentAtLength( contStepSize * i ));
-                icpf.push_back(pf);
-
-                // Next point
-                if(i < innerSamplesCount-1)
-                {
-                    QPointF qf = subContour.pointAtPercent(subContour.percentAtLength( contStepSize * (i+1) ));
-                    icqf.push_back(qf);
-                }
-                else
-                {
-                    QPointF mf = subContour.pointAtPercent(subContour.percentAtLength( contStepSize * (i-1) ));
-                    QPointF qf = (1 * (pf-mf)) + pf;
-                    icmf.push_back(mf);
-                    icqf.pop_back();
-                    icqf.push_back(qf);
-                }
-
-                pf = subPath.pointAtPercent(subPath.percentAtLength( pathStepSize * i ));
-                ippf.push_back(pf);
-
-                // Next point
-                if(i < innerSamplesCount-1)
-                {
-                    QPointF qf = subPath.pointAtPercent(subPath.percentAtLength( pathStepSize * (i+1) ));
-                    ipqf.push_back(qf);
-                }
-                else
-                {
-                    QPointF mf = subPath.pointAtPercent(subPath.percentAtLength( pathStepSize * (i-1) ));
-                    QPointF qf = (1 * (pf-mf)) + pf;
-                    ipmf.push_back(mf);
-                    ipqf.pop_back();
-                    ipqf.push_back(qf);
-                }
-                QLineF raySegment( icpf[i].x(), icpf[i].y(), ippf[i].x(), ippf[i].y() );
-                painter.setPen(QPen(Qt::blue, lineWidth * 0.5));
-                painter.drawLine(raySegment);
-            }
-            painter.setPen(QPen(Qt::yellow, pointSize));
-            for (int i = 0; i < innerSamplesCount; ++i)
-            {
-                painter.drawPoint(icpf[i]);
-                painter.drawPoint(ippf[i]);
-            }
-
-            if (increase)
-            {
-                p++;
-            }
-            else if ( p - 1 >= 0)
-            {
-                p--;
-            }
-
-            c++;
-        }
-    }*/
 }
 void Viewer::keyPressEvent(QKeyEvent *event)
 {
