@@ -25,198 +25,204 @@ typedef Vector2d Vector2;
 
 // Helper functions:
 QPolygonF resamplePolygon(QPolygonF points, int count = 100){
-	QPainterPath path;
-	path.addPolygon(points);
-	auto pathLen = path.length();
-	auto stepSize = pathLen / count;
-	QPolygonF newPoints;
-	for(int i = 0; i < count; i++)
-		newPoints << path.pointAtPercent(path.percentAtLength( stepSize * i ));
-	newPoints << path.pointAtPercent(0);
-	return newPoints;
+    QPainterPath path;
+    path.addPolygon(points);
+    auto pathLen = path.length();
+    auto stepSize = pathLen / count;
+    QPolygonF newPoints;
+    for(int i = 0; i < count; i++)
+        newPoints << path.pointAtPercent(path.percentAtLength( stepSize * i ));
+    newPoints << path.pointAtPercent(0);
+    return newPoints;
 }
 QPolygonF smoothPolygon( QPolygonF points, int iterations){
-	for(int i = 0; i < iterations; i++)
-	{
-		QPolygonF newPoints;
+    for(int i = 0; i < iterations; i++)
+    {
+        QPolygonF newPoints;
+		QPointF front = points.front();
+		points.pop_front();
+		QPointF back = points.back();
+		points.pop_back();
+        for(int p = 0; p < points.size(); p++)
+        {
+            int s = p-1, t = p+1;
+            if(s < 0) s = 0;
+            if(t > points.size()-1) t = points.size() - 1;
+            QPointF prev = points[s];
+            QPointF next = points[t];
+            newPoints << (prev + next) * 0.5;
+        }
 
-		for(int p = 0; p < points.size(); p++)
-		{
-			int s = p-1, t = p+1;
-			if(s < 0) s = 0;
-			if(t > points.size()-1) t = points.size() - 1;
-			QPointF prev = points[s];
-			QPointF next = points[t];
-			newPoints << (prev + next) * 0.5;
-		}
-
-		points = newPoints;
-	}
-	return points;
+        points = newPoints;
+		points.push_front(front);
+		points.push_back(back);
+    }
+    return points;
 }
 
 bool isIntersect( const QLineF & line1, const QPainterPath & path, QPointF & isect, double & t )
 {
-	QPolygonF polygon = path.toFillPolygon();
+    QPolygonF polygon = path.toFillPolygon();
 
-	QMap<double, QPointF> isections;
+    QMap<double, QPointF> isections;
 
     size_t N = polygon.size();
 
     for(size_t i = 0; i < N; i++)
-	{
-		int j = i + 1;
-		if(i == polygon.size()-1) j = 0;
+    {
+        int j = i + 1;
+        if(i == polygon.size()-1) j = 0;
 
-		QLineF line2( polygon[i], polygon[j] );
+        QLineF line2( polygon[i], polygon[j] );
 
-		//intersection2D::Point isect1, isect2;
-		//intersection2D::Segment s1();
-		//intersection2D::Segment s2();
-		//int isIntersect = intersection2D::intersect2D_2Segments( s1, s2, &isect1, &isect2 );
+        //intersection2D::Point isect1, isect2;
+        //intersection2D::Segment s1();
+        //intersection2D::Segment s2();
+        //int isIntersect = intersection2D::intersect2D_2Segments( s1, s2, &isect1, &isect2 );
 
-		float x, y;
+        float x, y;
 
-		int isIntersect = get_line_intersection(line1.x1(), line1.y1(), line1.x2(), line1.y2(), 
-												line2.x1(), line2.y1(), line2.x2(), line2.y2(), &x, &y);
+        int isIntersect = get_line_intersection(line1.x1(), line1.y1(), line1.x2(), line1.y2(),
+                                                line2.x1(), line2.y1(), line2.x2(), line2.y2(), &x, &y);
 
-		if( isIntersect > 0 )
-		{
-			QPointF cur_isect = QPointF( x, y );
-			QPointF delta = (cur_isect - line1.p1());
-			double distance = Vector2(delta.x(), delta.y()).norm();
+        if( isIntersect > 0 )
+        {
+            QPointF cur_isect = QPointF( x, y );
+            QPointF delta = (cur_isect - line1.p1());
+            double distance = Vector2(delta.x(), delta.y()).norm();
 
+            // not precise
             t = double(i+1) / double (N-1);
-			isections[ distance ] = cur_isect;
-		}
-	}
+            isections[ distance ] = cur_isect;
+        }
+    }
 
-	if( isections.empty() )
-		return false;
-	else
-	{
+    if( isections.empty() )
+        return false;
+    else
+    {
         isect =  isections[ isections.keys().front() ];
-		return true;
-	}
+        return true;
+    }
 }
 
-double signedAngle( Vector2 A, Vector2 B ){
-	double cross = (A.x()*B.y()) - (A.y()*B.x());
-	double dot = A.dot(B) ;
-	double angle = atan2( cross, dot );
-	return angle;
+double signedAngle( Vector2 & A, Vector2 & B ){
+    double cross = (A.x()*B.y()) - (A.y()*B.x());
+    double dot = A.dot(B) ;
+    double angle = atan2( cross, dot );
+    return angle;
 }
 
 double signedAngleAsVectors(QLineF l1, QLineF l2)
 {
-	Vector2 A( l1.dx(), l1.dy() );
-	Vector2 B( l2.dx(), l2.dy() );
+    Vector2 A( l1.dx(), l1.dy() );
+    Vector2 B( l2.dx(), l2.dy() );
 
-	if(A.squaredNorm() == 0 || B.squaredNorm() == 0) return 0;
+    if(A.squaredNorm() == 0 || B.squaredNorm() == 0) return 0;
 
-	A.normalize();
-	B.normalize();
+    A.normalize();
+    B.normalize();
 
-	return signedAngle( A, B );
+    return signedAngle( A, B );
 }
 
 double projectPointSegment( QPointF point, QLineF line )
 {
-	Vector2 p(point.x(), point.y());
-	Vector2 v(line.p1().x(), line.p1().y());
-	Vector2 w(line.p2().x(), line.p2().y());
-	double l2 = (w-v).squaredNorm();
-	return l2 > 0 ? (p-v).dot(w-v) / l2 : 0;
+    Vector2 p(point.x(), point.y());
+    Vector2 v(line.p1().x(), line.p1().y());
+    Vector2 w(line.p2().x(), line.p2().y());
+    double l2 = (w-v).squaredNorm();
+    return l2 > 0 ? (p-v).dot(w-v) / l2 : 0;
 }
 
 void distanceToSegment( QPointF point, QLineF line, double & distance, double & t, QPointF & projection )
 {
-	t = projectPointSegment(point, line);
-	projection = line.pointAt(t);
+    t = projectPointSegment(point, line);
+    projection = line.pointAt(t);
 
-	if(t < 0)		distance = QLineF(point, line.p1()).length(); // 'left' of line
-	else if(t > 0)	distance = QLineF(point, line.p2()).length(); // 'right' of line
-	else			distance = QLineF(point, projection).length(); // 'between' line
+    if(t < 0)		distance = QLineF(point, line.p1()).length(); // 'left' of line
+    else if(t > 0)	distance = QLineF(point, line.p2()).length(); // 'right' of line
+    else			distance = QLineF(point, projection).length(); // 'between' line
 }
 
 void distanceAngleTo( QPointF point, QLineF line, double & distance, double & angle )
 {
-	double t = 0;
-	QPointF projection;
+    double t = 0;
+    QPointF projection;
 
-	distanceToSegment(point, line, distance, t, projection);
+    distanceToSegment(point, line, distance, t, projection);
 
-	double x = signedAngleAsVectors( line, QLineF(point, line.p1()) );
-	//angle = radiansToDegrees(x);
-	angle = 90;
+    double x = signedAngleAsVectors( line, QLineF(line.p1(), point) );
+    angle = radiansToDegrees(x);
+    //angle = 90;
 }
 
 Viewer::Viewer(QWidget *parent) : QWidget(parent), ui(new Ui::Viewer)
 {
-	ui->setupUi(this);
+    ui->setupUi(this);
 
-	setFocusPolicy(Qt::ClickFocus);
+    setFocusPolicy(Qt::ClickFocus);
 
-	QString defaultFile = "../points.txt";
+    QString defaultFile = "../points.txt";
 
-	QPolygonF points;
+    QPolygonF points;
 
-	// Load points from file
-	if(QFileInfo(defaultFile).exists()){
-		QFile file( defaultFile );
-		file.open(QFile::ReadOnly | QFile::Text);
-		QTextStream in(&file);
-		QStringList lines = in.readAll().split('\n');
-		for( auto line : lines ){
-			auto pointCoord = line.split(",");
-			if(pointCoord.size() < 2) continue;
-			points << QPointF( pointCoord[0].toDouble(), pointCoord[1].toDouble() );
-		}
-		points << points.first();
-	}
-	else
-		return;
+    // Load points from file
+    if(QFileInfo(defaultFile).exists()){
+        QFile file( defaultFile );
+        file.open(QFile::ReadOnly | QFile::Text);
+        QTextStream in(&file);
+        QStringList lines = in.readAll().split('\n');
+        for( auto line : lines ){
+            auto pointCoord = line.split(",");
+            if(pointCoord.size() < 2) continue;
+            points << QPointF( pointCoord[0].toDouble(), pointCoord[1].toDouble() );
+        }
+        points << points.first();
+    }
+    else
+        return;
 
-	QPainterPath contour;
-	bool isFirst = true;
+    QPainterPath contour;
+    bool isFirst = true;
 
-	for(auto p : points)
-	{
-		float x = p.x();
-		float y = p.y();
+    for(auto p : points)
+    {
+        float x = p.x();
+        float y = p.y();
 
-		if(isFirst) {
-			contour.moveTo(QPoint(x,y));
-			isFirst = false;
-		}
+        if(isFirst) {
+            contour.moveTo(QPoint(x,y));
+            isFirst = false;
+        }
 
-		contour.lineTo(QPoint(x,y));
-	}
-	contours.push_back(contour);
+        contour.lineTo(QPoint(x,y));
+    }
+    contours.push_back(contour);
 }
 
 Viewer::~Viewer()
 {
-	delete ui;
+    delete ui;
 }
 
 void Viewer::paintEvent(QPaintEvent *)
 {
-	QPainter painter(this);
+    QPainter painter(this);
     //painter.setRenderHint(QPainter::Antialiasing);
-	painter.fillRect(rect(), Qt::white);
+    painter.fillRect(rect(), Qt::white);
 
-	if(contours.empty()) return;
+    if(contours.empty()) return;
 
-	// Draw contour
-	painter.setPen(QPen(Qt::green, 4));
+    // Draw contour
+    painter.setPen(QPen(Qt::green, 4));
     for (auto & contour : contours) painter.drawPath(contour);
 
-	if(paths.empty()) return;
+    if(paths.empty()) return;
 
-	// Draw user path
-	painter.setPen(QPen(Qt::green, 4));
-	for (auto & path : paths) painter.drawPolyline(path);
+    // Draw user path
+    painter.setPen(QPen(Qt::green, 4));
+    for (auto & path : paths) painter.drawPolyline(path);
 
     // Find starting and ending point on the contour
     QPainterPath path1;
@@ -253,18 +259,18 @@ void Viewer::paintEvent(QPaintEvent *)
 
         if( isIntersect(raySegment1, cont, isect_start, t_s) )
         {
-            painter.setPen(QPen(Qt::red, 5));
+            painter.setPen(QPen(Qt::red, 10));
             painter.drawPoint( isect_start );
         }
 
         if( isIntersect(raySegment2, cont, isect_end, t_e) )
         {
-            painter.setPen(QPen(Qt::green, 5));
+            painter.setPen(QPen(Qt::yellow, 10));
             painter.drawPoint( isect_end );
         }
     }
 
-	int pointSize = 4;
+    int pointSize = 4;
 
     // Sample the contour
     QVector<QPointF> cp1, cp2, cq, cm, pp, pq, pm;
@@ -294,12 +300,6 @@ void Viewer::paintEvent(QPaintEvent *)
             QPointF pf = contour.pointAtPercent(thisStep);
             cp1.push_back(pf);
         }
-        painter.setPen(QPen(Qt::red, pointSize));
-        for (int i = 0; i < samplesCount; ++i)
-        {
-            painter.drawPoint(cp1[i]);
-        }
-
         stepSize = (t_s + 1 - t_e) / double(samplesCount);
         for(int i = 0; i <= samplesCount; i++)
         {
@@ -312,6 +312,13 @@ void Viewer::paintEvent(QPaintEvent *)
             QPointF pf = contour.pointAtPercent(thisStep);
             cp2.push_back(pf);
         }
+
+        painter.setPen(QPen(Qt::red, pointSize));
+        for (int i = 0; i < samplesCount; ++i)
+        {
+            painter.drawPoint(cp1[i]);
+        }
+
         painter.setPen(QPen(Qt::yellow, pointSize));
         for (int i = 0; i < samplesCount; ++i)
         {
@@ -341,7 +348,7 @@ void Viewer::paintEvent(QPaintEvent *)
             }
             else
             {
-				// For last tangent
+                // For last tangent
                 QPointF m = path.pointAtPercent(path.percentAtLength( stepSize * (i-1) ));
                 QPointF q = (1 * (p-m)) + p;
                 pm.push_back(m);
@@ -357,128 +364,139 @@ void Viewer::paintEvent(QPaintEvent *)
     }
 
     // Store the angle and length in the vector
-	int x = 100;
-	int graphWidth = 400;
-	int segmentWidth = graphWidth / samplesCount;
+    int x = 100;
+    int graphWidth = 400;
+    int segmentWidth = graphWidth / samplesCount;
 
-	QPointF graphStart( 500, 200 );
-	painter.translate( graphStart );
-	painter.setOpacity( 0.6 );
+    QPointF graphStart( 500, 200 );
+    painter.translate( graphStart );
+    painter.setOpacity( 0.6 );
 
     for(int i = 0; i < samplesCount; i++)
     {
-        //if (reverse == false)
+        QPointF pA, pB, topA, topB, bottomA, bottomB;
+        if (reverse == false)
         {
-			auto pA = pp[i], pB = pp[i+1];
-			auto topA = cp1[i], topB = cp1[i+1];
-			auto bottomA = cp2[i], bottomB = cp2[i+1];
-			
-			QLineF segment(pA, pB);
-
-			double distanceA = 0, angleA = 0;
-			double distanceB = 0, angleB = 0;
-
-			// Top:
-			distanceAngleTo(topA, segment, distanceA, angleA);
-			angles.push_back(angleA);
-			lengths.push_back(distanceA);
-
-			distanceAngleTo(topB, segment, distanceB, angleB);
-			angles.push_back(angleB);
-			lengths.push_back(distanceB);
-
-			// Debug:
-			{
-				painter.setPen(QPen(Qt::red,1));
-				QLineF l1(0,0,distanceA*0.5,0);
-				l1.setAngle(angleA);
-				painter.drawLine(l1.translated(x,0));
-				QLineF l2(0,0,distanceB*0.5,0);
-				l2.setAngle(angleB);
-				painter.drawLine(l2.translated(x+segmentWidth*0.5,0));
-			}
-
-			// Bottom:
-			distanceAngleTo(bottomA, segment, distanceA, angleA);
-			angles.push_back(angleA);
-			lengths.push_back(distanceA);
-
-			distanceAngleTo(bottomB, segment, distanceB, angleB);
-			angles.push_back(angleB);
-			lengths.push_back(distanceB);
-
-			// Debug:
-			{
-				painter.setPen(QPen(Qt::yellow,1));
-				QLineF l1(0,0,distanceA*0.5,0);
-				l1.setAngle(angleA);
-				painter.drawLine(l1.translated(x,0));
-				QLineF l2(0,0,distanceB*0.5,0);
-				l2.setAngle(angleB);
-				painter.drawLine(l2.translated(x+segmentWidth*0.5,0));
-			}
-
-			x += segmentWidth;
+            pA = pp[i], pB = pp[i+1];
+            topA = cp1[i], topB = cp1[i+1];
+            bottomA = cp2[samplesCount - i], bottomB = cp2[samplesCount - i - 1];
         }
-    }
+        else
+        {
+            pA = pp[i], pB = pp[i+1];
+            topA = cp1[samplesCount - i], topB = cp1[samplesCount - i - 1];
+            bottomA = cp2[i], bottomB = cp2[i+1];
+        }
+        QLineF segment(pA, pB);
 
-	//qDebug() << angles;
+        double distanceA = 0, angleA = 0;
+        double distanceB = 0, angleB = 0;
+
+        // Top:
+        distanceAngleTo(topA, segment, distanceA, angleA);
+        angles.push_back(angleA);
+        lengths.push_back(distanceA);
+
+        distanceAngleTo(topB, segment, distanceB, angleB);
+        angles.push_back(angleB);
+        lengths.push_back(distanceB);        
+
+        {
+            painter.setPen(QPen(Qt::red,1));
+            QLineF l1(0,0,distanceA*0.5,0);
+            l1.setAngle(angleA);
+            painter.drawLine(l1.translated(x,0));
+            QLineF l2(0,0,distanceB*0.5,0);
+            l2.setAngle(angleB);
+            painter.drawLine(l2.translated(x+segmentWidth*0.5,0));
+
+            painter.setPen(QPen(Qt::red,5));
+            painter.drawPoint(l1.translated(x,0).p2());
+            painter.drawPoint(l2.translated(x+segmentWidth*0.5,0).p2());
+        }
+
+        // Bottom:
+        distanceAngleTo(bottomA, segment, distanceA, angleA);
+        angles.push_back(angleA);
+        lengths.push_back(distanceA);
+
+        distanceAngleTo(bottomB, segment, distanceB, angleB);
+        angles.push_back(angleB);
+        lengths.push_back(distanceB);
+
+        {
+            painter.setPen(QPen(Qt::yellow,1));
+            QLineF l1(0,0,distanceA*0.5,0);
+            l1.setAngle(angleA);
+            painter.drawLine(l1.translated(x,0));
+            QLineF l2(0,0,distanceB*0.5,0);
+            l2.setAngle(angleB);
+            painter.drawLine(l2.translated(x+segmentWidth*0.5,0));
+
+            painter.setPen(QPen(Qt::yellow,5));
+            painter.drawPoint(l1.translated(x,0).p2());
+            painter.drawPoint(l2.translated(x+segmentWidth*0.5,0).p2());
+        }
+
+        x += segmentWidth;
+    }
+    //qDebug() << angles;
 }
 
 void Viewer::keyPressEvent(QKeyEvent *event)
 {
-	if (event->key() == Qt::Key_Space)
-	{
-		reduceDimention();
-	}
+    if (event->key() == Qt::Key_Space)
+    {
+        reduceDimention();
+    }
 }
 
 void Viewer::mousePressEvent(QMouseEvent *event)
 {
-	if (event->button() == Qt::LeftButton) {
-		lastPoint = event->pos();
-		scribbling = true;
+    if (event->button() == Qt::LeftButton) {
+        lastPoint = event->pos();
+        scribbling = true;
 
-		QPolygonF path;
-		paths.push_back(path);
-	}
-	else
-	{
-		paths.clear();
-		update();
-	}
+        QPolygonF path;
+        paths.push_back(path);
+    }
+    else
+    {
+        paths.clear();
+        update();
+    }
 }
 void Viewer::mouseReleaseEvent(QMouseEvent *event)
 {
-	if (event->button() == Qt::LeftButton && scribbling) {
-		scribbling = false;
+    if (event->button() == Qt::LeftButton && scribbling) {
+        scribbling = false;
 
-		if(!paths.empty())
-		{
-			auto & path = paths.back();
-			path = smoothPolygon(path, 10);
-		}
-	}
+        if(!paths.empty())
+        {
+            auto & path = paths.back();
+            path = smoothPolygon(path, 10);
+        }
+    }
 
-	update();
+    update();
 }
 
 void Viewer::mouseMoveEvent(QMouseEvent *event)
 {
-	if ((event->buttons() & Qt::LeftButton) && scribbling)
-	{
-		int prev_y = lastPoint.y();
-		int prev_x = lastPoint.x();
+    if ((event->buttons() & Qt::LeftButton) && scribbling)
+    {
+        int prev_y = lastPoint.y();
+        int prev_x = lastPoint.x();
 
-		int y = event->pos().y();
-		int x = event->pos().x();
+        int y = event->pos().y();
+        int x = event->pos().x();
 
-		auto & p = paths.back();
+        auto & p = paths.back();
 
-		p << QPoint(x, y);
+        p << QPoint(x, y);
 
-		update();
-	}
+        update();
+    }
 }
 
 void Viewer::reduceDimention()
@@ -614,3 +632,4 @@ void Viewer::reduceDimention()
         }*/
 
 }
+
