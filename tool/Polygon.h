@@ -3,7 +3,7 @@
 #include <QPolygon>
 #include <QLine>
 
-#include "trianglelib.h"
+#include "../triangle/trianglelib.h"
 
 struct ARAPDeformer;
 

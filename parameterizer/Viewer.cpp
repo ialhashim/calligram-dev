@@ -198,7 +198,13 @@ Viewer::Viewer(QWidget *parent) : QWidget(parent), ui(new Ui::Viewer)
 
         contour.lineTo(QPoint(x,y));
     }
-    contours.push_back(contour);
+
+    QPolygonF polygon = contour.toFillPolygon();
+    polygon = resamplePolygon(polygon);
+    QPainterPath resampledPolygon;
+    resampledPolygon.addPolygon(polygon);
+
+    contours.push_back(resampledPolygon);
 }
 
 Viewer::~Viewer()
@@ -365,8 +371,9 @@ void Viewer::paintEvent(QPaintEvent *)
 
     // Store the angle and length in the vector
     int x = 100;
-    int graphWidth = 400;
-    int segmentWidth = graphWidth / samplesCount;
+    // int graphWidth = 400;
+    int segmentWidth = stepSize;
+            //graphWidth / samplesCount;
 
     QPointF graphStart( 500, 200 );
     painter.translate( graphStart );
@@ -374,68 +381,51 @@ void Viewer::paintEvent(QPaintEvent *)
 
     for(int i = 0; i < samplesCount; i++)
     {
-        QPointF pA, pB, topA, topB, bottomA, bottomB;
+        QPointF pA, pB, top, bottom;
         if (reverse == false)
         {
             pA = pp[i], pB = pp[i+1];
-            topA = cp1[i], topB = cp1[i+1];
-            bottomA = cp2[samplesCount - i], bottomB = cp2[samplesCount - i - 1];
+            top = cp1[i];
+            bottom = cp2[samplesCount - i];
         }
         else
         {
             pA = pp[i], pB = pp[i+1];
-            topA = cp1[samplesCount - i], topB = cp1[samplesCount - i - 1];
-            bottomA = cp2[i], bottomB = cp2[i+1];
+            top = cp1[samplesCount - i];
+            bottom = cp2[i];
         }
         QLineF segment(pA, pB);
 
-        double distanceA = 0, angleA = 0;
-        double distanceB = 0, angleB = 0;
+        double distance = 0, angle = 0;
 
         // Top:
-        distanceAngleTo(topA, segment, distanceA, angleA);
-        angles.push_back(angleA);
-        lengths.push_back(distanceA);
-
-        distanceAngleTo(topB, segment, distanceB, angleB);
-        angles.push_back(angleB);
-        lengths.push_back(distanceB);        
+        distanceAngleTo(top, segment, distance, angle);
+        angles.push_back(angle);
+        lengths.push_back(distance);
 
         {
             painter.setPen(QPen(Qt::red,1));
-            QLineF l1(0,0,distanceA*0.5,0);
-            l1.setAngle(angleA);
+            QLineF l1(0,0,distance,0);
+            l1.setAngle(angle);
             painter.drawLine(l1.translated(x,0));
-            QLineF l2(0,0,distanceB*0.5,0);
-            l2.setAngle(angleB);
-            painter.drawLine(l2.translated(x+segmentWidth*0.5,0));
 
             painter.setPen(QPen(Qt::red,5));
             painter.drawPoint(l1.translated(x,0).p2());
-            painter.drawPoint(l2.translated(x+segmentWidth*0.5,0).p2());
         }
 
         // Bottom:
-        distanceAngleTo(bottomA, segment, distanceA, angleA);
-        angles.push_back(angleA);
-        lengths.push_back(distanceA);
-
-        distanceAngleTo(bottomB, segment, distanceB, angleB);
-        angles.push_back(angleB);
-        lengths.push_back(distanceB);
+        distanceAngleTo(bottom, segment, distance, angle);
+        angles.push_back(angle);
+        lengths.push_back(distance);
 
         {
             painter.setPen(QPen(Qt::yellow,1));
-            QLineF l1(0,0,distanceA*0.5,0);
-            l1.setAngle(angleA);
+            QLineF l1(0,0,distance,0);
+            l1.setAngle(angle);
             painter.drawLine(l1.translated(x,0));
-            QLineF l2(0,0,distanceB*0.5,0);
-            l2.setAngle(angleB);
-            painter.drawLine(l2.translated(x+segmentWidth*0.5,0));
 
             painter.setPen(QPen(Qt::yellow,5));
             painter.drawPoint(l1.translated(x,0).p2());
-            painter.drawPoint(l2.translated(x+segmentWidth*0.5,0).p2());
         }
 
         x += segmentWidth;

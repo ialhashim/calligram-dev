@@ -5,7 +5,7 @@
 #include <QTextStream>
 #include "iostream"
 
-#include "trianglelib.h"
+#include "../triangle/trianglelib.h"
 
 using namespace std;
 
