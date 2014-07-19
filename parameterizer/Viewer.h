@@ -33,6 +33,9 @@ public:
     QVector<qreal> lengths;
 
 	QString message;
+    int padding;
+    QRectF inputRect;
+
 private:
     Ui::Viewer *ui;
 };

@@ -159,9 +159,9 @@ void distanceAngleTo( QPointF point, QLineF line, double & distance, double & an
 
 Viewer::Viewer(QWidget *parent) : QWidget(parent), ui(new Ui::Viewer)
 {
-    ui->setupUi(this);
-
-    setFocusPolicy(Qt::ClickFocus);
+    this->ui->setupUi(this);
+    this->setFocusPolicy(Qt::ClickFocus);
+    this->padding = 20;
 
     QString defaultFile = "../points.txt";
 
@@ -179,6 +179,12 @@ Viewer::Viewer(QWidget *parent) : QWidget(parent), ui(new Ui::Viewer)
             points << QPointF( pointCoord[0].toDouble(), pointCoord[1].toDouble() );
         }
         points << points.first();
+
+        // Input bounds
+        inputRect = points.boundingRect();
+        QPointF delta = -inputRect.topLeft() + QPointF(padding, padding);
+        points.translate( delta );
+        inputRect.moveTopLeft(QPointF(padding,padding));
     }
     else
         return;
@@ -201,10 +207,11 @@ Viewer::Viewer(QWidget *parent) : QWidget(parent), ui(new Ui::Viewer)
 
     QPolygonF polygon = contour.toFillPolygon();
     polygon = resamplePolygon(polygon);
-    QPainterPath resampledPolygon;
-    resampledPolygon.addPolygon(polygon);
 
-    contours.push_back(resampledPolygon);
+    QPainterPath resampledPolygon;
+    resampledPolygon.addPolygon( polygon );
+
+    contours.push_back( resampledPolygon );
 }
 
 Viewer::~Viewer()
@@ -369,15 +376,14 @@ void Viewer::paintEvent(QPaintEvent *)
         }
     }
 
-    // Store the angle and length in the vector
-    int x = 100;
-    // int graphWidth = 400;
-    int segmentWidth = 1.5*stepSize;
-            //graphWidth / samplesCount;
-
-    QPointF graphStart( 500, 200 );
+    // Move painter to draw projected curves
+    //painter.drawRect( inputRect );
+    QPointF graphStart( inputRect.bottomRight() + QPointF(padding*3,-0.5 * inputRect.height()) );
     painter.translate( graphStart );
-    painter.setOpacity( 0.6 );
+    painter.setOpacity( 0.9 );
+
+    int segmentWidth = QLineF(inputRect.topLeft(),inputRect.bottomRight()).length() / samplesCount;
+    int x = 0;
 
     for(int i = 0; i < samplesCount; i++)
     {
@@ -430,6 +436,15 @@ void Viewer::paintEvent(QPaintEvent *)
 
         x += segmentWidth;
     }
+
+    // Draw text
+    painter.setOpacity(0.2);
+    painter.setPen(QPen(Qt::black,1));
+
+    int fontSize = 40;
+    painter.setFont(QFont("arial",fontSize));
+    painter.drawText( QRectF(0,-fontSize,200,200), "bunny" );
+
     //qDebug() << angles;
 }
 
