@@ -23,7 +23,7 @@ public:
 	void mouseReleaseEvent(QMouseEvent *);
 	void mouseMoveEvent(QMouseEvent *);
 
-    void reduceDimention();
+    void drawLetters();
 
 	bool scribbling;
 	QPoint lastPoint;
