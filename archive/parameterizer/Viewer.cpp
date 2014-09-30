@@ -9,6 +9,7 @@
 #include <QTextStream>
 #include <QDebug>
 #include <iostream>
+#include <QFontMetrics>
 
 using namespace std;
 
@@ -22,6 +23,9 @@ typedef Vector2d Vector2;
 
 // Intersection library
 #include "intersections.h"
+
+// Triangle library
+#include "./triangle/trianglelib.h"
 
 // Helper functions:
 QPolygonF resamplePolygon(QPolygonF points, int count = 100){
@@ -380,9 +384,12 @@ void Viewer::paintEvent(QPaintEvent *)
     //painter.drawRect( inputRect );
     QPointF graphStart( inputRect.bottomRight() + QPointF(padding*3,-0.5 * inputRect.height()) );
     painter.translate( graphStart );
-    painter.setOpacity( 0.9 );
+    //painter.setOpacity( 0.9 );
+    //painter.setPen(QPen(Qt::black,5));
+    //painter.drawPoint(graphStart);
 
-    int segmentWidth = QLineF(inputRect.topLeft(),inputRect.bottomRight()).length() / samplesCount;
+    int inputLength = QLineF(inputRect.topLeft(),inputRect.bottomRight()).length();
+    int segmentWidth = inputLength / samplesCount;
     int x = 0;
 
     for(int i = 0; i < samplesCount; i++)
@@ -406,13 +413,13 @@ void Viewer::paintEvent(QPaintEvent *)
 
         // Top:
         distanceAngleTo(top, segment, distance, angle);
-        angles.push_back(angle);
+        angles.push_back(360-angle);
         lengths.push_back(distance);
 
         {
             painter.setPen(QPen(Qt::red,1));
             QLineF l1(0,0,distance,0);
-            l1.setAngle(angle);
+            l1.setAngle(360-angle);
             painter.drawLine(l1.translated(x,0));
 
             painter.setPen(QPen(Qt::red,5));
@@ -421,13 +428,13 @@ void Viewer::paintEvent(QPaintEvent *)
 
         // Bottom:
         distanceAngleTo(bottom, segment, distance, angle);
-        angles.push_back(angle);
+        angles.push_back(360-angle);
         lengths.push_back(distance);
 
         {
             painter.setPen(QPen(Qt::yellow,1));
             QLineF l1(0,0,distance,0);
-            l1.setAngle(angle);
+            l1.setAngle(360-angle);
             painter.drawLine(l1.translated(x,0));
 
             painter.setPen(QPen(Qt::yellow,5));
@@ -438,12 +445,63 @@ void Viewer::paintEvent(QPaintEvent *)
     }
 
     // Draw text
-    painter.setOpacity(0.2);
-    painter.setPen(QPen(Qt::black,1));
 
     int fontSize = 40;
-    painter.setFont(QFont("arial",fontSize));
-    painter.drawText( QRectF(0,-fontSize,200,200), "bunny" );
+    QFont font("arial", fontSize);
+    QFontMetrics metrics(font);
+    QString word("bunny");
+    QVector<double> widthPercentage;
+    int totalWidth = metrics.width(word , -1);
+    for (int i = 0; i < word.length(); i++)
+    {
+        int thisWidth = metrics.width(word, i);
+        double percentage = double(thisWidth) / double(totalWidth);
+        widthPercentage.push_back(percentage);
+    }
+
+    painter.setOpacity(0.8);
+    painter.setPen(QPen(Qt::black,1));
+    painter.setFont(font);
+
+    for (int i = 0; i < word.length(); i++)
+    {
+        double step = widthPercentage[i] * inputLength;
+        //double step = widthPercentage[i] * path.length();
+        painter.drawText(QPoint(step,0), word.at(i));
+    }
+
+    // map back
+    //QRect draw_rect(hili_start_x,hili_start_y,hili_end_x - hili_start_x,hili_end_y-hili_start_y);
+
+    //QPixmap high_pixmap(draw_rect.size());
+    //QImage high_image = image.copy(draw_rect);
+
+    trianglelib::BasicMesh<double> mesh;
+    trianglelib::triangulatePolygon<double>(contours.first(), mesh);
+
+    for(auto triangle : mesh.triangles)
+    {
+        QPolygonF tri;
+
+        tri << QPointF( mesh.vertices[triangle[0]][0], mesh.vertices[triangle[0]][1] );
+        tri << QPointF( mesh.vertices[triangle[1]][0], mesh.vertices[triangle[1]][1] );
+        tri << QPointF( mesh.vertices[triangle[2]][0], mesh.vertices[triangle[2]][1] );
+
+        triangles.push_back( tri );
+    }
+
+
+    for (int i = 0; i < samplesCount; i++)
+    {
+    }
+
+    //painter.drawPoint(.translated(x,0).p2());
+
+    //painter.drawText( QRectF(0,-fontSize,200,200), "bunny" );
+
+    //QPainterPath text;
+    //text.addText(QPointF(0, 0), QFont("arial",40), tr("bunny"));
+    //painter.drawPath(text);
 
     //qDebug() << angles;
 }
