@@ -1,14 +1,6 @@
-import math.geom2d.*; // documentation http://geom-java.sourceforge.net/api/index.html
-
 import java.awt.*;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
 
-import javax.swing.JButton;
 import javax.swing.JFrame;
-import javax.swing.JLabel;
-import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
  
 public class LetterFeatures implements Runnable {
@@ -20,21 +12,7 @@ public class LetterFeatures implements Runnable {
         f.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         f.setLayout(new FlowLayout());
         
-        try{
-        	InputStream is = new FileInputStream("VAGRoundedBold.ttf");
-        	Font myfont = Font.createFont(Font.TRUETYPE_FONT, is).deriveFont(42f);
-        	f.setFont(myfont);
-        	
-            JTextField userTextField=new JTextField(20);
-            userTextField.setFont(myfont);
-            userTextField.setText("Testing!");
-            f.add(userTextField);
-        }catch(IOException e)
-        {
-        	e.printStackTrace();
-        } catch (FontFormatException e) {
-			e.printStackTrace();
-		}       
+        f.add(new Viewer());
         
         f.pack();
         f.setVisible(true);
