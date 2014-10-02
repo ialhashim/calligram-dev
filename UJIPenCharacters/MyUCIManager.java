@@ -25,8 +25,7 @@ public class MyUCIManager extends ImageManager {
 
 	public void paint(Graphics gra) {
 		try {
-			BufferedReader br = new BufferedReader(new FileReader(
-					"ujipenchars2.txt"));
+			BufferedReader br = new BufferedReader(new FileReader("ujipenchars2.txt"));
 			String line;
 			int linecount = 0;
 			int filename = 0;
