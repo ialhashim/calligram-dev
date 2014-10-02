@@ -1,14 +1,18 @@
+import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.FontFormatException;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Point;
+import java.awt.Polygon;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.swing.JComponent;
@@ -94,13 +98,21 @@ public class Viewer extends JComponent {
 			}
 			
 			MarchingSquares ms = new MarchingSquares(oneDArray, ih, iw);
-			List<java.awt.geom.Point2D.Double> path = ms.identifyPerimeter().getPath();
+			ArrayList<Point> path = ms.identifyPerimeter().getPath();
 
-			Graphics2D g2 = (Graphics2D) img.getGraphics();
-			for(java.awt.geom.Point2D.Double point : path){
-				
+			// Visualize extracted perimeter 
+			for(Point point : path){
 				img.setRGB((int)point.x, (int)point.y, Color.red.getRGB());
 			}
+			
+			ArrayList<Point> hull = Convexhull.quickHull(path);
+			Polygon polyhull = new Polygon();
+			for(Point point : hull)
+				polyhull.addPoint(point.x,point.y);
+			Graphics2D gg = (Graphics2D) img.getGraphics();
+			gg.setColor(Color.green);
+			gg.setStroke(new BasicStroke(8));
+			gg.drawPolygon(polyhull);
 			
 			System.out.println("Processed.");
 		}

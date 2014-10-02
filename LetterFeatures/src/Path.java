@@ -3,6 +3,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.awt.Point;
 import java.awt.geom.Point2D;
 
 public class Path {
@@ -61,17 +62,17 @@ public class Path {
 		return directions;
 	}
 	
-	public List<java.awt.geom.Point2D.Double> getPath(){
-		List<java.awt.geom.Point2D.Double> path = new ArrayList<java.awt.geom.Point2D.Double>();
+	public ArrayList<Point> getPath(){
+		ArrayList<Point> path = new ArrayList<Point>();
 		int x = originX;
 		int y = originY;
 		
-		path.add(new Point2D.Double(Math.abs(x),Math.abs(y)));
+		path.add(new Point(Math.abs(x),Math.abs(y)));
 		
 		for(Direction d : directions){
 			x += d.planeX;
 			y += d.planeY;
-			path.add(new Point2D.Double(Math.abs(x),Math.abs(y)));
+			path.add(new Point(Math.abs(x),Math.abs(y)));
 		}
 		
 		return path;
