@@ -67,8 +67,6 @@ public class Path {
 		int x = originX;
 		int y = originY;
 		
-		path.add(new Point(Math.abs(x),Math.abs(y)));
-		
 		for(Direction d : directions){
 			x += d.planeX;
 			y += d.planeY;
