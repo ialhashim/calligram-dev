@@ -29,7 +29,7 @@ void Mesh::loadOBJ()
 
 		double x = lineTokens[1].toFloat(), y = lineTokens[2].toFloat(), z = lineTokens[3].toFloat();
 
-        vertices.push_back( Vertex(Eigen::Vector3d(x,y,z), vertices.size()) );
+        vertices.push_back( Vertex(Eigen::Vector3d(x,y,z), (int)vertices.size()) );
     }
 
 	// Normalize:
@@ -48,7 +48,7 @@ void Mesh::loadOBJ()
 		int j = (i + 1) % (vertices.size());
 		vertices[i].forward = &vertices[j];
 
-		int k = i - 1; if (k < 0) k += vertices.size();
+        int k = i - 1; if (k < 0) k += (int)vertices.size();
 		vertices[i].backward = &vertices[k];
 	}
 }

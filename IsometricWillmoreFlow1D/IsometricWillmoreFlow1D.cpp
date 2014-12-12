@@ -1,4 +1,7 @@
+#pragma warning(disable:4789)
+
 #include <iostream>
+
 #include "IsometricWillmoreFlow1D.h"
 
 using namespace std;
@@ -22,7 +25,7 @@ void IsometricWillmoreFlow1D::integrate(double dt)
 
 void IsometricWillmoreFlow1D::getCurvature(void)
 {
-	int n = mesh->vertices.size();
+    int n = (int)mesh->vertices.size();
 
 	double sum_kappa = 0;
 
@@ -163,7 +166,7 @@ void IsometricWillmoreFlow1D::recoverTangents(void)
 
 void IsometricWillmoreFlow1D::recoverPositions(void)
 {
-	int idx_start = mesh->vertices.size() - 1;
+    int idx_start = (int)mesh->vertices.size() - 1;
 
 	Mesh::Vertex pos_start = mesh->vertices[idx_start];
 	Mesh::Vertex pos_i = mesh->vertices[idx_start];
@@ -173,7 +176,7 @@ void IsometricWillmoreFlow1D::recoverPositions(void)
 	for (int i = 0; i < (int)mesh->vertices.size(); i++)
 	{
 		int j = i - 1;
-		if (j < 0) j += mesh->edges.size();
+        if (j < 0) j += (int)mesh->edges.size();
 		Eigen::Vector3d tangent = mesh->edges[j].tangent;
 		pos_i += tangent;
 

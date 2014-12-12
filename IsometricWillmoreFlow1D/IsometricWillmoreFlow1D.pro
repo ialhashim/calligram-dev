@@ -1,4 +1,4 @@
-QT       += core gui
+QT       += core gui opengl
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 TARGET = IsometricWillmoreFlow1D
@@ -9,10 +9,9 @@ INCLUDEPATH += .
 SOURCES += main.cpp \
     IsometricWillmoreFlow1D.cpp \
     Mesh.cpp \
-    Vertex.cpp
+    Viewer.cpp
 
 HEADERS += \
     IsometricWillmoreFlow1D.h \
     Mesh.h \
-    Vertex.h \
-    HalfEdge.h
+    Viewer.h
