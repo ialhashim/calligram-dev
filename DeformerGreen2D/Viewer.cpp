@@ -6,6 +6,8 @@
 #include <QKeyEvent>
 #include <QFileDialog>
 
+#include "mvc.h"
+
 #include "Mesh.h"
 using namespace surface_mesh;
 
@@ -40,7 +42,16 @@ void Viewer::paintEvent(QPaintEvent *)
     painter.setRenderHint(QPainter::Antialiasing);
     painter.fillRect(rect(),Qt::white);
 
-    // Draw points
+	// CHULL
+	QPainterPath path2;
+	path2.addPolygon(chull);
+	painter.setPen(QPen(Qt::blue, 2));
+	painter.drawPath(path2);
+	painter.setPen(QPen(Qt::green, 8));
+	painter.drawPoints(chull);
+
+	// Draw points
+	painter.setPen(QPen(Qt::black, 1));
     QPainterPath path;
     path.addPolygon(points);
     painter.drawPath( path );
@@ -122,13 +133,47 @@ void Viewer::keyPressEvent(QKeyEvent *event)
 			// Move some control point
 			for (int i = 0; i < 3; i++)	points[i] = origPositions[i] + (QPointF(cos(theta), sin(theta)) * radius);
 			
-			applyDeform();
+			applyDeformGreen();
 
 			update();
 
 			theta += 0.1;
 		});
 		timer->start( 10 );
+	}
+
+	if (event->key() == Qt::Key_Backspace){
+		QTimer * timer = new QTimer;
+
+		// Compute MVC weights:
+		if (meshes.empty() || points.empty()) return;
+		Mesh & mesh = *meshes.front();
+		auto & mesh_points = mesh.vertex_property<Point>("v:point");
+		auto & mesh_weights = mesh.vertex_property<std::vector<double> >("v:mvc", std::vector<double>());
+
+		std::vector<Eigen::Vector2d> cage;
+		for (auto p : points) cage.push_back(Eigen::Vector2d(p.x(), p.y()));
+
+		for (auto v : mesh.vertices()){
+			auto p = mesh_points[v];
+			mesh_weights[v] = MeanValueCoordinates<Eigen::Vector2d>::computeWeights(p[0], p[1], cage);
+		}
+
+		connect(timer, &QTimer::timeout, [=]()
+		{
+			static QPolygonF origPositions = points;
+			static double theta = 0.0;
+			static double radius = 50.0;
+
+			// Move some control point
+			for (int i = 0; i < 3; i++)	points[i] = origPositions[i] + (QPointF(cos(theta), sin(theta)) * radius);
+
+			applyDeformMVC();
+
+			update();
+			theta += 0.1;
+		});
+		timer->start(10);
 	}
 
 	// Compute GC coordinates for current cage
@@ -163,6 +208,18 @@ void Viewer::keyPressEvent(QKeyEvent *event)
         }
     }
 
+    // Test convexhull:
+    if(event->key() == Qt::Key_H){
+        std::vector<Eigen::Vector3d> convexhull;
+
+        std::vector<Eigen::Vector3d> pnts;
+        for(auto p : points) pnts.push_back(toEigen(p));
+
+		convexhull2d<Eigen::Vector3d>(pnts.begin(), pnts.end(), std::back_inserter(convexhull));
+
+		for (auto p : convexhull) chull << QPointF(p[0],p[1]);
+    }
+
     update();
 }
 
@@ -172,8 +229,8 @@ void Viewer::computeGreenCoordinates()
 	Mesh & mesh = *meshes.front();
 
 	auto & mesh_points = mesh.vertex_property<Point>("v:point");
-	auto & gcoord_phi = mesh.vertex_property<std::vector<double> >("v:green_coord_phi", std::vector<double>(0));
-	auto & gcoord_psi = mesh.vertex_property<std::vector<double> >("v:green_coord_psi", std::vector<double>(0));
+	auto & gcoord_phi = mesh.vertex_property<std::vector<double> >("v:green_coord_phi", std::vector<double>());
+	auto & gcoord_psi = mesh.vertex_property<std::vector<double> >("v:green_coord_psi", std::vector<double>());
 
 	int n_boundary_pt = points.size();
 
@@ -276,7 +333,7 @@ void Viewer::computeGreenCoordinates()
 	isCoordinatesReady = true;
 }
 
-void Viewer::applyDeform()
+void Viewer::applyDeformGreen()
 {
 	if (meshes.empty() || points.empty()) return;
 	if (!isCoordinatesReady) computeGreenCoordinates();
@@ -313,5 +370,22 @@ void Viewer::applyDeform()
 		}
 
 		mesh_points[vertex] = weighted_pt;
+	}
+}
+
+void Viewer::applyDeformMVC()
+{
+	if (meshes.empty() || points.empty()) return;
+	Mesh & mesh = *meshes.front();
+	auto & mesh_points = mesh.vertex_property<Point>("v:point");
+	auto & mesh_weights = mesh.vertex_property<std::vector<double> >("v:mvc");
+
+	std::vector<Eigen::Vector2d> cage;
+	for (auto p : points) cage.push_back(Eigen::Vector2d(p.x(), p.y()));
+
+	for (auto v : mesh.vertices())
+	{
+		auto pp = MeanValueCoordinates<Eigen::Vector2d>::interpolate2d(mesh_weights[v], cage);
+		mesh_points[v] = Eigen::Vector3d(pp[0],pp[1],0);
 	}
 }

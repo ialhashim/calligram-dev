@@ -12,7 +12,7 @@ TARGET = Deformer2D
 TEMPLATE = app
 
 # Eigen
-INCLUDEPATH += ../../archive
+INCLUDEPATH += ../archive
 
 SOURCES += main.cpp\
         mainwindow.cpp \
