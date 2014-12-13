@@ -12,33 +12,24 @@ IsometricWillmoreFlow1D::IsometricWillmoreFlow1D(Mesh * _mesh) : mesh(_mesh)
 
 void IsometricWillmoreFlow1D::integrate(double dt)
 {
-	getCurvature();
-	buildMassMatrix();
-	buildConstraints();
-	orthogonalizeConstraints();
-	computeFlowDirection();
-	enforceConstraints();
-	integrateFlow(dt);
-	recoverTangents();
-	recoverPositions();
+    getCurvature();
+    buildMassMatrix();
+    buildConstraints();
+    orthogonalizeConstraints();
+    computeFlowDirection();
+    enforceConstraints();
+    integrateFlow( dt );
+    recoverTangents();
+    recoverPositions();
 }
 
 void IsometricWillmoreFlow1D::getCurvature(void)
 {
-    int n = (int)mesh->vertices.size();
-
-	double sum_kappa = 0;
-
-	for (int i = 0; i < (int)n; i++)
-	{
-		auto & v = mesh->vertices[i];
-		auto kappa = v.curvature();
-        v.kappa = kappa;
-
-		sum_kappa += kappa;
+    for (int i = 0; i < (int)mesh->vertices.size(); i++)
+    {
+        Mesh::Vertex & v = mesh->vertices[i];
+        v.kappa = v.curvature();
     }
-
-	//printf("sum_kappa = %f\n", sum_kappa);
 }
 
 void IsometricWillmoreFlow1D::buildMassMatrix(void)
@@ -49,8 +40,7 @@ void IsometricWillmoreFlow1D::buildMassMatrix(void)
 
     for (int i = 0; i < (int)mesh->vertices.size(); i++)
     {
-        auto & v = mesh->vertices[i];
-        B.coeffRef(i, i) = v.dualLength();
+        B.coeffRef(i, i) = mesh->vertices[i].dualLength();
 	}
 }
 
@@ -88,19 +78,7 @@ void IsometricWillmoreFlow1D::orthogonalizeConstraints(void)
 	c[2] -= c2c1 * c[1];
 
 	double c2Norm = computeMatrixNorm(B, c[2]);
-	c[2] /= c2Norm;
-
-    /*
-	//check orthogonality
-	DenseMatrix<double> check1 = c[1].transpose() * (B * c[0]);
-	double r = check1(0, 0);
-    DenseMatrix<double> check2 = c[2].transpose() * (B * c[0]);
-	double r1 = check2(0, 0);
-	DenseMatrix<double> check3 = c[2].transpose() * (B * c[1]);
-	double r2 = check3(0, 0);
-	double eps = 10e-8;
-	assert(fabs(r) < eps && fabs(r1) < eps && fabs(r2) < eps);
-    */
+    c[2] /= c2Norm;
 }
 
 void IsometricWillmoreFlow1D::computeFlowDirection(void)
@@ -108,16 +86,10 @@ void IsometricWillmoreFlow1D::computeFlowDirection(void)
 	size_t n = mesh->vertices.size();
     kappaDot = Eigen::MatrixXd(n, 1);
 
-	double sum_kappaDot = 0;
-
     for (int i = 0; i < (int)mesh->vertices.size(); i++)
     {
-        auto & v = mesh->vertices[i];
-        kappaDot(i) = -2.0 * v.kappa;
-
-		sum_kappaDot += kappaDot(i);
-	}
-	//printf("computeFlowDirection = %f\n", sum_kappaDot);
+        kappaDot(i) = -2.0 * mesh->vertices[i].kappa;
+    }
 }
 
 void IsometricWillmoreFlow1D::enforceConstraints(void)
@@ -132,60 +104,43 @@ void IsometricWillmoreFlow1D::enforceConstraints(void)
 
 void IsometricWillmoreFlow1D::integrateFlow(double dt)
 {
-	double sum_kappa = 0;
-
     for (int i = 0; i < (int)mesh->vertices.size(); i++)
     {
-        auto & v = mesh->vertices[i];
-		v.kappa += dt * kappaDot(i);
-		sum_kappa += v.kappa;
-	}
-
-	//printf("\nintegrateFlow = %f\n", sum_kappa);
+        mesh->vertices[i].kappa += dt * kappaDot(i);
+    }
 }
 
 void IsometricWillmoreFlow1D::recoverTangents(void)
 {
-	auto theta_i = mesh->theta(mesh->vertices.front(), mesh->vertices.back());
+    auto theta_i = mesh->theta(mesh->vertices.front(), mesh->vertices.back());
 
 	for (int i = 0; i < (int)mesh->vertices.size(); i++)
 	{
 		auto & v = mesh->vertices[i];
 
-		double L_i = v.dualLength();
+        double L_i = mesh->vertices[i].dualLength();
+
 		theta_i += L_i * v.kappa;
 
-		double x = cos(theta_i);
-		double y = sin(theta_i);
-
-		mesh->edges[i].tangent = L_i * Eigen::Vector3d(x, y, 0.0);
-	}
-
-	//printf("\nrecoverTangents = %f\n", theta_i);
+        mesh->edges[i].tangent = L_i * Eigen::Vector3d(cos(theta_i), sin(theta_i), 0.0);
+    }
 }
 
 void IsometricWillmoreFlow1D::recoverPositions(void)
 {
-    int idx_start = (int)mesh->vertices.size() - 1;
+    Mesh::Vertex pos_i = mesh->vertices.back();
 
-	Mesh::Vertex pos_start = mesh->vertices[idx_start];
-	Mesh::Vertex pos_i = mesh->vertices[idx_start];
-
-	//cout << "start idx = " << idx_start << " pos = " << pos_i.x() << "," << pos_i.y() << "\n";
-
-	for (int i = 0; i < (int)mesh->vertices.size(); i++)
+    for (int idx = 0; idx <= (int)mesh->vertices.size(); idx++)
 	{
-		int j = i - 1;
-        if (j < 0) j += (int)mesh->edges.size();
-		Eigen::Vector3d tangent = mesh->edges[j].tangent;
+        int i = idx % mesh->vertices.size();
+        int j = i - 1; if (j < 0) j += (int)mesh->edges.size();
+
+        Eigen::Vector3d tangent = mesh->edges[j].tangent;
 		pos_i += tangent;
 
 		// Only coordinate changes
 		mesh->vertices[i][0] = pos_i[0];
 		mesh->vertices[i][1] = pos_i[1];
-		mesh->vertices[i][2] = pos_i[2];
-		//cout << "idx = " << i << " Pos = " << pos_i.x() << "," << pos_i.y() << " Tangent idx " << j << " = " << mesh->edges[i].tangent.x() << "\n";
-	}
-
-	auto pp = pos_i;
+        mesh->vertices[i][2] = pos_i[2];
+    }
 }

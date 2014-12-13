@@ -8,7 +8,7 @@ int main(int argc, char *argv[])
 {
 	if (argc < 2) return -1;
 
-    auto flow = QSharedPointer<IsometricWillmoreFlow1D>(new IsometricWillmoreFlow1D(new Mesh(argv[1])));
+    auto flow = QSharedPointer<IsometricWillmoreFlow1D>(new IsometricWillmoreFlow1D(new Mesh(argv[1], argc > 2 ? atoi(argv[2]) : 0)));
 
     QApplication app(argc, argv);
 

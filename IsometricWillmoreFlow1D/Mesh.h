@@ -9,12 +9,13 @@
 class Mesh
 {
 public:
-    Mesh(const std::string& filename);
+    Mesh(const std::string& filename, int resampling);
 	Mesh(const Mesh& other);
 	std::string filename;
 
     void loadOBJ();
-	void center();
+    void postProcess();
+    void center();
 
 	// Vertex operations
 	struct Vertex : public Eigen::Vector3d{
@@ -31,20 +32,22 @@ public:
 		}
 
 		double dualLength(){
-			return 0.5 * ((*forward - *this).norm() + (*backward - *this).norm());
+            return 0.5 * ((*forward - *this).norm() + (*this- *backward).norm());
 		}
 
 		double phi(){
 			auto p_next = *forward;
 			auto p_prev = *backward;
 			Eigen::Vector3d v = p_next - *this;
-			Eigen::Vector3d u = *this - p_prev;
-			return atan2(u.x() * v.y() - v.x() * u.y(), u.dot(v));
+            Eigen::Vector3d u = *this - p_prev;
+            return atan2(u.x() * v.y() - v.x() * u.y(), u.dot(v));
 		}
 	};
 
     std::vector<Vertex> vertices;
     int num_points;
+
+    std::vector< std::vector<Vertex> > flow_vertices;
 
 	// Edge operations
 	struct Edge{ Eigen::Vector3d tangent; };
