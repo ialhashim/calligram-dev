@@ -11,6 +11,9 @@
 
 QSharedPointer<surface_mesh::Mesh> _mesh;
 
+std::vector<int> pins_const_ids;
+std::vector<int> pins;
+
 Viewer::Viewer()
 {
     setMinimumSize(800,800);
@@ -51,14 +54,40 @@ void Viewer::paintGL()
     //glPolygonMode(GL_FRONT, GL_LINE);
     if(!mesh.isNull() && mesh->n_faces())
     {
-        glBegin(GL_TRIANGLES);
+        Vector3 sum(0,0,0);
+        for(auto pi : mesh->vertices())
+        {
+            auto blah = mesh->get_vertex_property<Vector3>("v:point")[pi];
+            sum += blah;
+        }
+        Vector3 c = sum / mesh->n_vertices();
+
+        double delta = -0.5;
+        c += Vector3(delta, delta,0);
+
         auto points = mesh->vertex_property<Eigen::Vector3d>("v:point");
+
+        glBegin(GL_TRIANGLES);
         for(auto f : mesh->faces())
         {
             for(auto v : surface_mesh::Mesh::Vertex_around_face_circulator(mesh.data(), f))
             {
-                glVertex2d(points[v][0], points[v][1]);
+                auto realPos = points[v];
+
+                auto fixedPos = realPos - c;
+
+                glVertex2d(fixedPos[0], fixedPos[1]);
             }
+        }
+        glEnd();
+
+        glColor3d(1,0,0);
+        glBegin(GL_POINTS);
+        for(auto idx : pins)
+        {
+            auto p = points[surface_mesh::Surface_mesh::Vertex(idx)];
+            p -= c;
+            glVertex2d(p[0], p[1]);
         }
         glEnd();
     }
@@ -72,7 +101,7 @@ void Viewer::keyPressEvent(QKeyEvent *e)
 
     if(e->key() == Qt::Key_Space){
         trianglelib::BasicMesh<double> m;
-        LetterGeometry letter('p', 60, 0.02);
+        LetterGeometry letter('p', 70, 0.02);
         trianglelib::triangulatePolygon<double>(letter.points, letter.holes, m);
 
         mesh = QSharedPointer<surface_mesh::Mesh>( new surface_mesh::Mesh() );
@@ -158,9 +187,13 @@ void Viewer::keyPressEvent(QKeyEvent *e)
 			}
 
 			// Constraints
-			std::vector<int> pins;
+
 			pins.push_back(0);
-			pins.push_back(mesh->n_vertices() * 0.5);
+            pins.push_back(mesh->n_vertices() * 0.5);
+            pins.push_back(mesh->n_vertices() * 0.25);
+            pins.push_back(mesh->n_vertices() * 0.75);
+            pins.push_back(mesh->n_vertices() * 0.4);
+
 			{
 				double close_weight = 1.0;
 
@@ -170,12 +203,14 @@ void Viewer::keyPressEvent(QKeyEvent *e)
 					id_vector.push_back(pinned);
 					auto c = std::make_shared<ShapeOp::ClosenessConstraint>(id_vector, close_weight, p);
 					auto cid = solver->addConstraint(c);
+
+                    pins_const_ids.push_back(cid);
 				}
 			}
 
 			// Gravity
 			auto f = std::make_shared<ShapeOp::GravityForce>(Vector3(0, -0.01, 0));
-			solver->addForces(f);
+            //solver->addForces(f);
 
 			/// 4) Initialize the solver
 			solver->initialize(true, 0.01, 0.5, 1.0);
@@ -193,10 +228,28 @@ void Viewer::keyPressEvent(QKeyEvent *e)
 				auto points = mesh->vertex_property<Eigen::Vector3d>("v:point");
 				Eigen::Map<ShapeOp::Matrix3X> p(points.vector().front().data(), 3, nb_points);
 				int dimensions = 2;
-				solver->solve(10, dimensions);
+
+                solver->solve(20, dimensions);
+
+
 				auto final_points = solver->getPoints();
 				for (size_t i = 0; i < p.cols(); i++) p.col(i) = final_points.col(i);
 				update();
+
+                for(int i = 0; i < pins.size(); i++)
+                {
+                    // Modifty constraints
+                    int idx = i;
+                    auto c = std::dynamic_pointer_cast <ShapeOp::ClosenessConstraint>(solver->getConstraint(pins_const_ids[idx]));
+
+                    auto pts = solver->getPoints();
+                    Vector3 oldPos = pts.col(pins[idx]);
+                    Vector3 newPos = oldPos + (Vector3::Random() * 0.2 * (double(rand())/RAND_MAX));
+                    c->setPosition( newPos );
+
+                    //if((double(rand())/RAND_MAX) > 0.5) continue;
+                }
+
 			});
 			timer->start(30);
 		}
