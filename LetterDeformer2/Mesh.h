@@ -680,8 +680,9 @@ public: //------------------------------------------------------ property types
         }
     };
 
-
-
+	std::map<std::string, double> scalar;
+	std::map<std::string, int> integer;
+	std::map<std::string, bool> logic;
 
 public: //------------------------------------------------------ iterator types
 
@@ -1594,7 +1595,6 @@ public: //------------------------------------------------------------- file IO
         {
             Surface_mesh & mesh = *this;
 
-#define _CRT_SECURE_NO_WARNINGS
             FILE* out = fopen(filename.c_str(), "w");
             if (!out)
                 return false;

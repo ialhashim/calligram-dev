@@ -11,6 +11,8 @@
 #include "libShapeOp/Constraint.h"
 
 #include "GeoHeatHelper.h"
+#include "GenericGraph.h"
+#include "grad.h"
 
 QSharedPointer<surface_mesh::Mesh> _mesh;
 
@@ -23,6 +25,7 @@ QElapsedTimer time;
 Viewer::Viewer()
 {
 	setMinimumSize(800, 800);
+	setMaximumSize(800, 800);
 	setFocusPolicy(Qt::ClickFocus);
 }
 
@@ -60,15 +63,19 @@ void Viewer::paintGL()
 	//glPolygonMode(GL_FRONT, GL_LINE);
 	if (!mesh.isNull() && mesh->n_faces())
 	{
-		Vector3 sum(0, 0, 0);
-		for (auto pi : mesh->vertices())
-			sum += mesh->get_vertex_property<Vector3>("v:point")[pi];
-		Vector3 c = sum / mesh->n_vertices();
+		auto points = mesh->vertex_property<Eigen::Vector3d>("v:point");
+
+		Eigen::AlignedBox3d bbox;
+
+		for (auto pi : mesh->vertices()) bbox.extend(points[pi]);
+
+		Vector3 c = bbox.center();
 
 		double delta = -0.5;
 		c += Vector3(delta, delta, 0);
 
-		auto points = mesh->vertex_property<Eigen::Vector3d>("v:point");
+		glTranslated(-c[0], -c[1], 0);
+
 		auto colors = mesh->vertex_property<Eigen::Vector3d>("v:color");
 
 		glBegin(GL_TRIANGLES);
@@ -76,11 +83,8 @@ void Viewer::paintGL()
 		{
 			for (auto v : surface_mesh::Mesh::Vertex_around_face_circulator(mesh.data(), f))
 			{
-				auto p = points[v];
-				p -= c;
-
 				glColor3dv(colors[v].data());
-				glVertex2d(p[0], p[1]);
+				glVertex3dv(points[v].data());
 			}
 		}
 		glEnd();
@@ -93,21 +97,87 @@ void Viewer::paintGL()
 		for (auto he : mesh->halfedges()){ if (mesh->is_boundary(he)){ h_b = he; break; } }
 		h_next = mesh->next_halfedge(h_b);
 		while (h_b != h_next){
-			auto p = points[mesh->from_vertex(h_next)];
-			p -= c;
-			glVertex2d(p[0], p[1]);
+			glVertex3dv(points[mesh->from_vertex(h_next)].data());
 			h_next = mesh->next_halfedge(h_next);
 		}
 		glEnd();
 
+		// Draw pins
 		glColor3d(1, 0, 0);
 		glBegin(GL_POINTS);
 		for (auto idx : pins)
 		{
-			auto p = points[surface_mesh::Surface_mesh::Vertex(idx)];
-			p -= c;
-			glVertex2d(p[0], p[1]);
+			glVertex3dv(points[surface_mesh::Surface_mesh::Vertex(idx)].data());
 		}
+		glEnd();
+
+		// Draw vectors
+		if (true)
+		{
+			auto gb = mesh->face_property<Vector3>("f:bfg");
+			auto gz = mesh->face_property<Vector3>("f:zfg");
+			auto ga = mesh->face_property<Vector3>("f:afg");
+
+			glPointSize(1.5);
+			glLineWidth(1);
+
+			double length = 0.02;
+
+			for (auto f : mesh->faces())
+			{
+				glColor3d(1, 1, 1);
+				glBegin(GL_POINTS);
+				Vector3 sum(0, 0, 0);
+				for (auto v : mesh->vertices(f)) sum += points[v];
+				Vector3 fc = sum / 3.0;
+				//glVertex3dv(fc.data());
+				glEnd();
+
+				glColor3d(0.4, 0.4, 0.4);
+				glBegin(GL_LINES);
+				glVertex3dv(fc.data());
+				Vector3 endpnt = fc + (length * gb[f]);
+				//glVertex3dv(endpnt.data());
+				glEnd();
+
+				glColor3d(0, 0, 0);
+				glBegin(GL_LINES);
+				glVertex3dv(fc.data());
+				Vector3 endpnt2 = fc + (length * gz[f]);
+				//glVertex3dv(endpnt2.data());
+				glEnd();
+
+				glColor3d(1, 0, 1);
+				glBegin(GL_LINES);
+				glVertex3dv(fc.data());
+				Vector3 endpnt3 = fc + (length * ga[f]);
+				//glVertex3dv(endpnt3.data());
+				glEnd();
+			}
+
+			auto gv = mesh->vertex_property<Vector3>("v:afg");
+			for (auto v : mesh->vertices())
+			{
+				glColor3d(1, 1, 1);
+				glBegin(GL_POINTS);
+				glVertex3dv(points[v].data());
+				glEnd();
+
+				glColor3d(1, 0, 1);
+				glBegin(GL_LINES);
+				glVertex3dv(points[v].data());
+				Vector3 endpnt3 = points[v] + (length * gv[v]);
+				glVertex3dv(endpnt3.data());
+				glEnd();
+			}
+		}
+
+		// Draw path for stroke
+		glLineWidth(3);
+		glColor3d(0, 0, 0);
+		glBegin(GL_LINE_STRIP);
+		for (auto idx : pnts)
+			glVertex3dv(points[surface_mesh::Surface_mesh::Vertex(idx)].data());
 		glEnd();
 	}
 }
@@ -174,35 +244,23 @@ void Viewer::keyPressEvent(QKeyEvent *e)
 
 	if (e->key() == Qt::Key_D)
 	{
-		if (mesh.isNull()) return;
+		auto d = mesh->vertex_property<Scalar>("v:dist_zero");
 
-		// Get start point
-		auto points = mesh->vertex_property<Eigen::Vector3d>("v:point");
-		double maxDist = -DBL_MAX;
-		Surface_mesh::Vertex start_v(0);
+		double min_v = DBL_MAX;
+		double max_v = -DBL_MAX;
+		Vertex start_v, end_v;
 		for (auto v : mesh->vertices()){
-			if (points[v].norm() > maxDist){
-				maxDist = points[v].norm();
+			if (d[v] < min_v){
 				start_v = v;
+				min_v = d[v];
+			}
+			if (d[v] > max_v){
+				end_v = v;
+				max_v = d[v];
 			}
 		}
 
-		QSet<Surface_mesh::Vertex> sources;
-		sources << Surface_mesh::Vertex(start_v);
-		auto d = GeoHeatHelper(mesh.data(), 10).getUniformDistance(sources, "v:dist_zero");
-		auto bdist = mesh->vertex_property<Scalar>("v:dist_border");
-
-		for (auto v : mesh->vertices())
-		{
-			double weight = d[v] + (1.0 - bdist[v]);
-			d[v] = pow(weight,2);
-		}
-
-		//smoothVertexProperty<double>(mesh.data(), "v:dist_zero", 2);
-		normalizeVertexProperty("v:dist_zero");
-		visualizeScalar("v:dist_zero");
-
-		update();
+		
 	}
 
 	if (e->key() == Qt::Key_Space)
@@ -221,12 +279,56 @@ void Viewer::keyPressEvent(QKeyEvent *e)
 
 			mesh->add_vertex_property<Vector3>("v:color", Vector3(1, 0, 0));
 
-			// Pre-compute distance to border
-			QSet<Surface_mesh::Vertex> sources;
-			for (auto v : mesh->vertices()) if (mesh->is_boundary(v)) sources << v;
-			auto dists = GeoHeatHelper(mesh.data(), 0.1).getUniformDistance(sources, "v:dist_border");
-			normalizeVertexProperty("v:dist_border");
-			visualizeScalar("v:dist_border");
+			// Compute stroke path
+			{
+				// Pre-compute distance to border
+				QSet<Surface_mesh::Vertex> sources;
+				for (auto v : mesh->vertices()) if (mesh->is_boundary(v)) sources << v;
+				GeoHeatHelper bgeo(mesh.data(), 0.1);
+				auto bd = bgeo.getDistance(sources, true, "v:dist_border");
+				visualizeScalar("v:dist_border");
+
+				// Stroke start/end
+				auto points = mesh->vertex_property<Eigen::Vector3d>("v:point");
+				double maxDist = -DBL_MAX;
+				Surface_mesh::Vertex start_v(0);
+				for (auto v : mesh->vertices()){
+					if (points[v].norm() > maxDist){
+						maxDist = points[v].norm();
+						start_v = v;
+					}
+				}
+
+				mesh->integer["start_v"] = start_v.idx();
+
+				GeoHeatHelper zgeo(mesh.data(), 1);
+				auto zd = zgeo.getDistance(QSet<Surface_mesh::Vertex>() << start_v, true, "v:dist_zero");
+				//visualizeScalar("v:dist_zero");
+
+				// Gradients
+				auto bf = meshGradFrom(mesh.data(), "v:dist_border", "f:bfg");
+				auto zf = meshGradFrom(mesh.data(), "v:dist_zero", "f:zfg");
+
+				auto af = mesh->face_property<Vector3>("f:afg");
+
+				for (auto f : mesh->faces())
+				{
+					double sum = 0;
+					for (auto v : mesh->vertices(f)) sum += bd[v];
+					double alpha = sum / 3.0;
+
+					af[f] = (alpha * zf[f]) + ((1 - alpha) * bf[f]);
+				}
+
+				auto vf = mesh->vertex_property<Vector3>("v:afg", Vector3(0,0,0));
+
+				for (auto v : mesh->vertices())
+				{
+					int fc = 0;
+					for (auto f : mesh->faces(v)) { vf[v] += af[f]; fc++; }
+					vf[v] /= fc;
+				}
+			}
 
 			// Solver
 			{
@@ -315,7 +417,7 @@ void Viewer::keyPressEvent(QKeyEvent *e)
 				pins.push_back(mesh->n_vertices() * 0.4);
 				*/
 
-				int numPins = 5;
+				int numPins = 3;
 
 				GeoHeatHelper geo(mesh.data());
 				auto src_points = mesh->vertex_property<bool>("v:geo_src_points", false);
@@ -325,7 +427,7 @@ void Viewer::keyPressEvent(QKeyEvent *e)
 				{
 					QSet<Vertex> src;
 					for (auto v : mesh->vertices()) if (src_points[v]) src << v;
-					geo_dist = geo.getUniformDistance(src);
+					geo_dist = geo.getDistance(src, true);
 
 					// Find furthest point, add it to source set
 					double maxDist = -DBL_MAX;
@@ -351,26 +453,6 @@ void Viewer::keyPressEvent(QKeyEvent *e)
 					{
 						std::vector<int> id_vector;
 						id_vector.push_back(pinned);
-
-						// Inefficient neighbors...
-						QSet<int> u;
-						for (auto vj : mesh->vertices(Vertex(pinned)))
-						{
-							u << vj.idx();
-							for (auto vjj : mesh->vertices(Vertex(vj.idx())))
-							{
-								u << vjj.idx();
-								for (auto vjjj : mesh->vertices(Vertex(vjj.idx())))
-								{
-									for (auto vjjjj : mesh->vertices(Vertex(vjjj.idx())))
-									{
-										u << vjjjj.idx();
-									}
-								}
-							}
-						}
-
-						for (auto vj : u) id_vector.push_back(vj);
 
 						auto c = std::make_shared<ShapeOp::ClosenessConstraint>(id_vector, close_weight, p);
 						auto cid = solver->addConstraint(c);
@@ -439,7 +521,7 @@ void Viewer::keyPressEvent(QKeyEvent *e)
 				auto c = std::dynamic_pointer_cast <ShapeOp::ClosenessConstraint>(solver->getConstraint(pins_const_ids[i]));
 
 				Vector3 oldPos = p.col(pins[i]);
-				Vector3 newPos = oldPos + (Vector3::Random() * 0.5 * (double(rand()) / RAND_MAX));
+				Vector3 newPos = oldPos + (Vector3::Random() * 0.4 * (double(rand()) / RAND_MAX));
 				c->setPosition(newPos);
 			}
 

@@ -5,6 +5,8 @@
 #include <QOpenGLFunctions>
 #include <QSharedPointer>
 #include <QKeyEvent>
+#include <QPolygon>
+#include <QPainterPath>
 
 namespace surface_mesh { class Mesh; }
 namespace ShapeOp { class Solver; }
@@ -19,6 +21,8 @@ public:
 
 	void visualizeScalar(const std::string property);
 	void normalizeVertexProperty(const std::string property);
+
+	QVector<int> pnts;
 
 protected:
     void initializeGL();

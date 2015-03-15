@@ -129,7 +129,7 @@ public:
         poisson_solver.compute( Lc_ );
     }
 
-	ScalarVertexProperty getUniformDistance(const QSet<Vertex> &source, const string property = "v:uniformDistance")
+	ScalarVertexProperty getDistance(const QSet<Vertex> &source, bool isNormalized, const string property = "v:uniformDistance")
     {
 		if(source.empty()) return ScalarVertexProperty();
 
@@ -148,7 +148,26 @@ public:
         VectorXd d = divergenceVertices();
         set( poisson_solver.solve( d ), "v:heat_distance");
 
-		return unifromDistance(property);
+		if (!isNormalized)
+		{
+			ScalarVertexProperty dist = unifromDistance("v:uniform");
+			double sumReal = 0.0;
+			double sumNorm = 0.0;
+
+			for (auto e : mesh->edges())
+			{
+				sumReal += elenght[e];
+				sumNorm += abs(dist[mesh->vertex(e, 0)] - dist[mesh->vertex(e, 1)]);
+			}
+
+			double s = sumReal / sumNorm;
+
+			ScalarVertexProperty vprop = mesh->vertex_property<Scalar>(property);
+			for (auto v : mesh->vertices()) vprop[v] = dist[v] * s;
+			return vprop;
+		}
+		else
+			return unifromDistance(property);
     }
 
     Scalar t()
@@ -340,10 +359,9 @@ public:
         return vprop;
     }
 
-	// Assuming "unifromDistance(pname)" has been called with default name
-	std::vector<Vertex> shortestVertexPath(const Vertex & toVertex)
+	std::vector<Vertex> shortestVertexPath(const Vertex & toVertex, const string property = "v:uniformDistance")
 	{
-		ScalarVertexProperty dists = mesh->vertex_property<Scalar>("v:uniformDistance");
+		ScalarVertexProperty dists = mesh->vertex_property<Scalar>(property);
 
 		std::vector<Vertex> path;
 		path.push_back(toVertex);
@@ -364,14 +382,19 @@ public:
 				}
 			}
 
-			if(curV != path.back())
-				path.push_back(curV);
-			else
-				break;
+			if (curV == path.back()) break;
+			path.push_back(curV);
 		}
 
 		std::reverse(path.begin(), path.end());
 		return path;
+	}
+
+	Surface_mesh::Face_property<Vector3> cloneFaceGradients(const string property = "f:gradientCopy")
+	{
+		auto fg = mesh->face_property<Vector3>("f:gradient", Vector3(0, 0, 0));
+		for (auto f : mesh->faces()) fg[f] = fgradient[f];
+		return fg;
 	}
 
     void cleanUp(bool isAll = false)

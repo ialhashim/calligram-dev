@@ -7,7 +7,10 @@ MainWindow::MainWindow(QWidget *parent) :
     ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-    ui->mainlayout->addWidget(new Viewer());
+	auto v = new Viewer();
+    ui->mainlayout->addWidget(v);
+
+	v->setFocus(Qt::NoFocusReason);
 }
 
 MainWindow::~MainWindow()
