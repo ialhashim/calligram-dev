@@ -6,6 +6,18 @@
 
 #include "voronoi.h"
 
+#include "triangulate.h"
+
+#include "kdtree.h"
+
+#include <QSet>
+uint qHash(const QPointF &t){
+	uint hash = 17;
+	hash = hash * 23 + qHash(t.x());
+	hash = hash * 23 + qHash(t.y());
+	return hash;
+}
+
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
@@ -37,6 +49,18 @@ void PaintWidget::paintEvent(QPaintEvent *) {
     for(auto l : lineSegments){
         p.drawLine(l);
     }
+
+	// Closest
+	p.setPen(QPen(Qt::green, 1));
+	for (auto l : closest){
+		p.drawLine(l);
+	}
+
+	// Delaney
+	p.setPen(QPen(Qt::magenta, 1));
+	for (auto l : triangulation){
+		p.drawLine(l);
+	}
 }
 
 void PaintWidget::mousePressEvent(QMouseEvent *event)
@@ -120,6 +144,41 @@ void PaintWidget::keyPressEvent(QKeyEvent *event)
         computeVoronoi();
     }
 
+	if (event->key() == Qt::Key_D)
+	{
+		triangulation.clear();
+
+		auto pts = points.toStdVector();
+		pts.resize(pts.size() - 1);
+
+		auto m = Delaunay::triangulate(pts);
+
+		for (auto f : m.faces)
+		{
+			auto p1 = QPointF(m.vertices[f[0]][0], m.vertices[f[0]][1]);
+			auto p2 = QPointF(m.vertices[f[1]][0], m.vertices[f[1]][1]);
+			auto p3 = QPointF(m.vertices[f[2]][0], m.vertices[f[2]][1]);
+
+			triangulation << QLineF(p1, p2);
+			triangulation << QLineF(p2, p3);
+			triangulation << QLineF(p3, p1);
+		}
+	}
+
+    if(event->key() == Qt::Key_O)
+	{
+		closest.clear();
+
+		auto vpts = innerPoints.toStdVector();
+        KDTree2D<QPointF> tree( vpts );
+
+        for(auto p : points)
+        {
+            auto closet = tree.search_k(p).front();
+            closest << QLineF(p, vpts[closet.idx]);
+        }
+    }
+
     update();
 }
 
@@ -176,14 +235,17 @@ void PaintWidget::computeVoronoi()
     VoronoiDiagramGenerator vdg;
     vdg.generateVoronoi(&vals[0][0], &vals[1][0], vals[0].size(), -bound, bound, -bound, bound, 1e-6f);
 
-    QPolygonF voroVerts;
+    /*QPolygonF voroVerts;
     float x,y;
     while(vdg.getNextVertex(x,y)){
         voroVerts.push_back( QPointF(x,y) );
     }
-    polygons["voroVerts"] = voroVerts;
+    polygons["voroVerts"] = voroVerts;*/
 
     lineSegments.clear();
+
+	QSet<QPointF> innerVoroni;
+
     float x1,y1,x2,y2;
     vdg.resetIterator();
     while(vdg.getNext(x1,y1,x2,y2)){
@@ -192,6 +254,10 @@ void PaintWidget::computeVoronoi()
         // Only inner edges
         if( points.containsPoint(p1, Qt::WindingFill) && points.containsPoint(p2, Qt::WindingFill) ){
             lineSegments.push_back( QLineF(p1,p2) );
+
+			innerVoroni << p1 << p2;
         }
     }
+
+	innerPoints = innerVoroni.toList().toVector();
 }

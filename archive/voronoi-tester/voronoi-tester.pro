@@ -6,7 +6,9 @@ TEMPLATE = app
 INCLUDEPATH += . ..
 
 SOURCES  += main.cpp mainwindow.cpp
-HEADERS  += mainwindow.h
+HEADERS  += mainwindow.h \
+    nanoflann.hpp \
+    kdtree.h
 
 FORMS    += mainwindow.ui
 

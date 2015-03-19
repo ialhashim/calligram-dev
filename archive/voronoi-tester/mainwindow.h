@@ -28,11 +28,14 @@ class PaintWidget : public QWidget {
     void wheelEvent(QWheelEvent *event);
 public:
     PaintWidget(QWidget * parent = 0);
-    QPolygonF points;
+    QPolygonF points, innerPoints;
     QString defaultFile;
     QVector<QPainterPath> paths;
     QMap<QString,QPolygonF> polygons;
     QVector<QLineF> lineSegments;
+    QVector<QLineF> closest;
+
+	QVector<QLineF> triangulation;
 
     void computeVoronoi();
 };
