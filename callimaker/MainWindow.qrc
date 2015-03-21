@@ -1,0 +1,23 @@
+<RCC>
+    <qresource prefix="/">
+        <file>view.html</file>
+        <file>js/globals.js</file>
+        <file>js/jquery-2.1.3.min.js</file>
+        <file>js/TimelineLite.min.js</file>
+        <file>js/TweenLite.min.js</file>
+        <file>style.css</file>
+        <file>js/initialize.js</file>
+        <file>font-awesome.css</file>
+        <file>fonts/FontAwesome.otf</file>
+        <file>fonts/fontawesome-webfont.woff</file>
+        <file>fonts/fontawesome-webfont.woff2</file>
+        <file>fonts/fontawesome-webfont.eot</file>
+        <file>fonts/fontawesome-webfont.svg</file>
+        <file>fonts/fontawesome-webfont.ttf</file>
+        <file>fonts/VAGRoundedBold.woff2</file>
+        <file>fonts/VAGRoundedBold.woff</file>
+        <file>fonts/VAGRoundedBold.ttf</file>
+        <file>buttons.css</file>
+        <file>js/plugins/CSSPlugin.min.js</file>
+    </qresource>
+</RCC>
