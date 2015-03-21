@@ -39,3 +39,5 @@ var menuState = {state: "hidden"};
 var selectedShape = {name: "", geometry: ""};
 
 var userStroke = {};
+
+var userCanvas = {};

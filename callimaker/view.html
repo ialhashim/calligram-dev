@@ -21,8 +21,8 @@
                     <div class="panel left-panel"> <i class="fa fa-asterisk"></i> Shape</div>
                     <div class="panel right-panel"> <i class="fa fa-vine"></i> Word</div>
                 </div>
-                <button id="menu-toggle-button" class="btn">
-                    <i class="fa fa-plus menu-toggle-icon"></i>
+                <button id="menu-toggle-button">
+                    <i id="menu-button-icon" class="fa fa-plus"></i>
                 </button>
             </div>
         </div>
@@ -34,6 +34,9 @@
                         <path class="ants" id="active-shape" d="" stroke="rgba(50,50,50,0.75)"
                         stroke-width="3" style="fill: rgba(255,255,255,0.75); fill-opacity: 0.3;"/>
                     </svg>
+                </div>
+                <div id="user-canvas-wrapper">
+                    <canvas id="user-canvas" width="900" height="500"></canvas>
                 </div>
             </div>
         </div>

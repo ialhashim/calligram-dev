@@ -66,23 +66,22 @@ html, body {
     position: absolute;
     left: -40px;
     bottom: -40px;
-}
 
-.menu-toggle-icon{
-    color: white;
-}
-
-.btn {
     -webkit-transition: 0.1s ease-out;
     background: hsl(0,83%,77%);
 }
 
-.btn:hover {
+#menu-button-icon{
+    color: white;
+    -webkit-transform: translateY(2px);
+}
+
+#menu-toggle-button:hover {
     background: hsl(0,83%,72%);
     -webkit-transform: translateY(5px);
 }
 
-.btn:active {
+#menu-toggle-button:active {
     -webkit-box-shadow: 0 2px 5px 0 rgba(0, 0, 0, 0.25), 0 2px 5px 0 rgba(0, 0, 0, 0.25);
     -webkit-transform: translateY(8px);
     -webkit-transition-property: all;
@@ -165,6 +164,18 @@ html, body {
 
 #selected-word{
     text-align: center;
+}
+
+/* Interactive elements */
+#user-canvas-wrapper{
+}
+
+#user-canvas{
+    margin: auto;
+    position: absolute;
+    top: 0; left: 0; bottom: 0; right: 0;
+
+    /*border: 10px solid red;*/
 }
 
 
