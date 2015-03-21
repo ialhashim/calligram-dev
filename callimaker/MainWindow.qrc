@@ -19,5 +19,6 @@
         <file>fonts/VAGRoundedBold.ttf</file>
         <file>buttons.css</file>
         <file>js/plugins/CSSPlugin.min.js</file>
+        <file>js/plugins/EasePack.min.js</file>
     </qresource>
 </RCC>
