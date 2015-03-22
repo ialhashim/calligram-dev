@@ -38,4 +38,12 @@ $( document ).ready(function() {
     console.log( "Page ready." + Control.callableEverywhere() );
 
     var dp = new DrawPanel("user-canvas");
+
+    document.getElementById('menu-toggle-button').addEventListener('click', function () {
+        if (screenfull.enabled) {
+            screenfull.request();
+        } else {
+            // Ignore or do something else
+        }
+    });
 });

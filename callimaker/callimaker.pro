@@ -25,8 +25,4 @@ FORMS    += MainWindow.ui
 
 RC_FILE = MainWindow.rc
 
-RESOURCES += \
-    MainWindow.qrc
-
-OTHER_FILES += \
-    js/paper-full.js
+RESOURCES += MainWindow.qrc

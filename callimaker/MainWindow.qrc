@@ -22,5 +22,6 @@
         <file>js/plugins/EasePack.min.js</file>
         <file>js/drawPanel.js</file>
         <file>js/paper-full.js</file>
+        <file>js/screenfull.js</file>
     </qresource>
 </RCC>
