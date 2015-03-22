@@ -13,9 +13,13 @@ TEMPLATE = app
 
 
 SOURCES += main.cpp\
-        MainWindow.cpp
+        MainWindow.cpp \
+    Control.cpp \
+    WebPage.cpp
 
-HEADERS  += MainWindow.h
+HEADERS  += MainWindow.h \
+    Control.h \
+    WebPage.h
 
 FORMS    += MainWindow.ui
 
@@ -23,3 +27,6 @@ RC_FILE = MainWindow.rc
 
 RESOURCES += \
     MainWindow.qrc
+
+OTHER_FILES += \
+    js/paper-full.js

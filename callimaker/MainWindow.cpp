@@ -1,5 +1,7 @@
 #include "MainWindow.h"
 #include "ui_MainWindow.h"
+#include "Control.h"
+#include "WebPage.h"
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -9,7 +11,14 @@ MainWindow::MainWindow(QWidget *parent) :
 
     ui->setupUi(this);
 
-    ui->webView->load(QUrl("qrc:/view.html"));
+    auto webpage = new WebPage(this);
+    ui->webView->setPage(webpage);
+    webpage->mainFrame()->load(QUrl("qrc:/view.html"));
+
+    // Connect control
+    auto frame = ui->webView->page()->mainFrame();
+    auto c = new Control(frame);
+    frame->addToJavaScriptWindowObject("Control", c);
 }
 
 MainWindow::~MainWindow()

@@ -41,3 +41,12 @@ var selectedShape = {name: "", geometry: ""};
 var userStroke = {};
 
 var userCanvas = {};
+
+// Check and replace missing control object:
+if (typeof Control == 'undefined')
+{
+    var ControlObject = function(){};
+    ControlObject.prototype.callableEverywhere = function (){return -1;};
+    ControlObject.prototype.receiveData = function(data){};
+    var Control = new ControlObject;
+}
