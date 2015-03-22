@@ -48,7 +48,7 @@ function DrawPanel( canvasID )
                 return;
 
             // Convert to SVG text:
-            var majorStrokeSVG = majorStroke.exportSVG(true);
+            //var majorStrokeSVG = majorStroke.exportSVG(true);
 
             // Draw letters at stroke:
             var nc = selectedShape.name.length;
@@ -67,9 +67,9 @@ function DrawPanel( canvasID )
             }
 
             // Send to back-end:
-            console.log(majorStrokeSVG);
-            var data = {command: "majorStroke", data: majorStrokeSVG};
-            Control.receiveData(data);
+            //console.log(majorStrokeSVG);
+            //var data = {command: "majorStroke", data: majorStrokeSVG};
+            //Control.receiveData(data);
 
             // Change to letters tool:
             lettersStrokeTool.activate();
