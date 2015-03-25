@@ -23,8 +23,10 @@ function DrawPanel( canvasID )
         {
             if(majorStroke) majorStroke.remove();
 
+            var majorStrokeLayer = new Layer();
+
             majorStroke = new Path();
-            majorStroke.selected = true;
+            majorStroke.selected = false;
             majorStroke.strokeColor = 'white';
             majorStroke.strokeCap = 'round';
             majorStroke.strokeJoin = 'round';
@@ -43,6 +45,11 @@ function DrawPanel( canvasID )
             {
                 majorStroke.setSegments( pathUtils.laplacianSmoothing(majorStroke, 10) );
                 majorStroke.simplify();
+                majorStroke.strokeColor = 'rgba(255,255,255,0.75)';
+                majorStroke.strokeWidth = 10;
+                majorStroke.shadowColor =  'rgba(0,0,0,0.2)';
+                majorStroke.shadowBlur = 8;
+                majorStroke.shadowOffset = new Point(2, 2);
             }
             else
                 return;
@@ -51,19 +58,31 @@ function DrawPanel( canvasID )
             //var majorStrokeSVG = majorStroke.exportSVG(true);
 
             // Draw letters at stroke:
+            var lettersLayer = new Layer();
+
             var nc = selectedShape.name.length;
             var step = majorStroke.length / nc;
             for(var i = 0; i < nc; i++)
             {
                 var c = selectedShape.name[i];
+                var t = i/nc;
+                var alpha = (t * 0.4) + 0.5;
+                var l = i * step;
+                var position = majorStroke.getPointAt(l);
+
                 var text = new PointText({
-                    point: majorStroke.getPointAt(i * step),
+                    point: position,
                     content: c,
-                    fillColor: 'black',
+                    fillColor: 'rgba(0,0,0,'+ alpha +')',
                     fontFamily: 'VAGRound',
                     fontWeight: 'bold',
-                    fontSize: 120
+                    fontSize: 120,
+                    shadowColor :  'rgba(0,0,0,0.8)',
+                    shadowBlur : 8,
+                    shadowOffset : new Point(2, 2)
                 });
+
+                text.translate(text.globalToLocal(text.bounds.bottomLeft).add(new Point(step*0.2,0)));
             }
 
             // Send to back-end:
@@ -72,7 +91,33 @@ function DrawPanel( canvasID )
             //Control.receiveData(data);
 
             // Change to letters tool:
+            var lettersStrokesLayer = new Layer();
             lettersStrokeTool.activate();
+
+            // Create default letter strokes:
+            for(var i = 1; i < nc; i++)
+            {
+                var c = selectedShape.name[i];
+                var t = i/nc;
+                var alpha = (t * 0.4) + 0.5;
+                var l = i * step;
+                var position = majorStroke.getPointAt(l);
+                var normal = majorStroke.getNormalAt(l);
+                normal.length = 80;
+
+                var from = position.add(normal);
+                var to = position.add(normal.negate());
+
+                var letterStroke = new Path.Line(from, to);
+                lsColor = 'hsla('+(t * 128)+',100%,70%,1.0)';
+                letterStroke.strokeColor = lsColor;
+                letterStroke.strokeCap = 'round';
+                letterStroke.strokeJoin = 'round';
+                letterStroke.strokeWidth = 10;
+                letterStroke.shadowColor =  'rgba(0,0,0,0.2)';
+                letterStroke.shadowBlur = 8;
+                letterStroke.shadowOffset = new Point(2, 2);
+            }
         }
     }
 
@@ -81,11 +126,32 @@ function DrawPanel( canvasID )
     {
         lettersStrokeTool.onMouseDown = function(event)
         {
+            var closestLS, closestDist = 1e10;
+
+            var existingStrokes = project.activeLayer.children;
+            for(var i = 0; i < existingStrokes.length; i++)
+            {
+                var stroke = existingStrokes[i];
+                var dist = stroke.getNearestPoint(event.point).subtract(event.point).length;
+
+                if(dist < closestDist){
+                    closestLS = existingStrokes[i];
+                    closestDist = dist;
+                }
+            }
+
+            var lsColor = closestLS.strokeColor;
+            closestLS.remove();
+
             letterStroke = new Path();
             letterStroke.strokeColor = 'rgba(255,255,0,0.50)';
+            letterStroke.strokeColor = lsColor;
             letterStroke.strokeCap = 'round';
             letterStroke.strokeJoin = 'round';
             letterStroke.strokeWidth = 10;
+            letterStroke.shadowColor =  'rgba(0,0,0,0.2)';
+            letterStroke.shadowBlur = 8;
+            letterStroke.shadowOffset = new Point(2, 2);
             letterStroke.add(event.point);
         }
 
