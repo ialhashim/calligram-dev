@@ -102,7 +102,9 @@ void Viewer::mousePressEvent(QMouseEvent *event)
     {
         if(event->modifiers().testFlag(Qt::ControlModifier))
         {
-            points << event->pos();
+            auto shape = images.front();
+
+            if(qRed(shape.pixel(event->pos()))) points << event->pos();
         }
 
         if(event->modifiers().testFlag(Qt::ShiftModifier))
@@ -152,7 +154,7 @@ void Viewer::keyPressEvent(QKeyEvent *event)
             // Stroke color
             QColor penColor;
             penColor.setHslF(double(rand()) / RAND_MAX * 0.25, 1, 0.5);
-            painter.setPen(QPen(penColor, 40, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+            painter.setPen(QPen(penColor, 35, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
 
             // Draw stroke
             painter.drawPolyline(path);
