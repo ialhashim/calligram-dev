@@ -1,0 +1,6 @@
+[submodule "libfastmarching"]
+	path = libfastmarching
+	url = https://github.com/ennetws/libfastmarching.git
+[submodule "experiments/libfastmarching"]
+	path = experiments/libfastmarching
+	url = https://github.com/ennetws/libfastmarching.git
