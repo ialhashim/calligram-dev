@@ -17,7 +17,8 @@ SOURCES +=  main.cpp\
             Viewer.cpp
 
 HEADERS  += mainwindow.h \
-            Viewer.h
+            Viewer.h \
+    globals.h
 
 FORMS    += mainwindow.ui \
             Viewer.ui

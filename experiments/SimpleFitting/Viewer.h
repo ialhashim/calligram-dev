@@ -25,6 +25,7 @@ public:
     QVector<MyQImage> images;
     QPolygonF points;
 
+    void loadImage(QString filename);
 private:
     Ui::Viewer *ui;
 

@@ -8,6 +8,9 @@
 #include <QFileDialog>
 
 #include "libfastmarching.h"
+libfastmarching::DynamicGrid * dgrid = nullptr;
+
+#include "globals.h"
 
 Viewer::Viewer(QWidget *parent) : QGLWidget(parent), ui(new Ui::Viewer)
 {
@@ -17,6 +20,9 @@ Viewer::Viewer(QWidget *parent) : QGLWidget(parent), ui(new Ui::Viewer)
 
     ui->setupUi(this);
 	setFocusPolicy(Qt::ClickFocus);
+
+    QString defaultImage = "n_outline.png";
+    if(QFileInfo(defaultImage).exists()) loadImage(defaultImage);
 }
 
 Viewer::~Viewer()
@@ -60,42 +66,6 @@ void Viewer::paintEvent(QPaintEvent *)
     }
 }
 
-template<typename QPolygonType>
-QPolygonType resamplePolygon(QPolygonType points, int count = 100){
-	QPainterPath path;
-	path.addPolygon(points);
-	auto pathLen = path.length();
-	auto stepSize = pathLen / count;
-    QPolygonType newPoints;
-	for(int i = 0; i < count; i++)
-    {
-        QPolygon::value_type p = path.pointAtPercent(path.percentAtLength( stepSize * i )).toPoint();
-        newPoints << p;
-    }
-	return newPoints;
-}
-
-template<typename QPolygonType>
-QPolygonType smoothPolygon( QPolygonType points, int iterations = 1 ){
-	for(int i = 0; i < iterations; i++)
-	{
-        QPolygonType newPoints;
-
-        for(int p = 0; p < points.size(); p++)
-        {
-			int s = p-1, t = p+1;
-            if(s < 0) s = 0;
-            if(t > points.size()-1) t = points.size()-1;
-            auto prev = points[s];
-            auto next = points[t];
-			newPoints << (prev + next) * 0.5;
-		}
-
-		points = newPoints;
-	}
-	return points;
-}
-
 void Viewer::mousePressEvent(QMouseEvent *event)
 {
     if(event->buttons().testFlag(Qt::LeftButton))
@@ -116,14 +86,42 @@ void Viewer::mousePressEvent(QMouseEvent *event)
     update();
 }
 
+void Viewer::loadImage(QString filename)
+{
+    auto img = QImage(filename);
+
+    images.clear();
+    images << MyQImage(img);
+    points.clear();
+
+    if(dgrid) delete dgrid;
+    dgrid = new libfastmarching::DynamicGrid(img);
+}
+
 void Viewer::keyPressEvent(QKeyEvent *event)
 {
     if(event->key() == Qt::Key_I)
     {
-        images.clear();
-        images << MyQImage(QImage(QFileDialog::getOpenFileName(0,"Load image", "", "*.png")));
+        this->loadImage(QFileDialog::getOpenFileName(0,"Load image", "", "*.png"));
+    }
 
-        points.clear();
+    if(event->key() == Qt::Key_W)
+    {
+        auto start_point = points.at(points.size()-2).toPoint();
+        auto end_point = points.back().toPoint();
+
+        QImage viz;
+        libfastmarching::Path fm2path = dgrid->bestPath(start_point, end_point, viz);
+
+        dgrid->modifyWalls(fm2path, globalStrokeSize * 0.5);
+
+        // Post-process path
+        QPolygon path;
+        for(auto p : fm2path) path << QPoint(p[0], p[1]);
+        path = smoothPolygon(resamplePolygon(path, dgrid->walls.width() * 0.25), 2);
+
+        // Visualize
+        images << visualizeStroke(dgrid->walls, path);
     }
 
     if(event->key() == Qt::Key_S)
@@ -137,30 +135,13 @@ void Viewer::keyPressEvent(QKeyEvent *event)
         libfastmarching::Path fm2path;
         libfastmarching::fm2star(shape, start_point, end_point, fm2path);
 
-        // Convert
+        // Post-process path
         QPolygon path;
         for(auto p : fm2path) path << QPoint(p[0], p[1]);
-
-        // Post-process path
         path = smoothPolygon(resamplePolygon(path,shape.width() * 0.25), 2);
 
         // Visualize
-        {
-            QImage strokeImage(shape.width(), shape.height(), QImage::Format_ARGB32_Premultiplied);
-            strokeImage.fill(Qt::transparent);
-            QPainter painter(&strokeImage);
-            painter.setRenderHint(QPainter::Antialiasing);
-
-            // Stroke color
-            QColor penColor;
-            penColor.setHslF(double(rand()) / RAND_MAX * 0.25, 1, 0.5);
-            painter.setPen(QPen(penColor, 35, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
-
-            // Draw stroke
-            painter.drawPolyline(path);
-
-            images << MyQImage(strokeImage);
-        }
+        images << visualizeStroke(shape, path);
     }
 
     update();
