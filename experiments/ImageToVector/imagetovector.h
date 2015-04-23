@@ -3,13 +3,16 @@
 #include <array>
 
 template<typename Scalar, typename ImageClass>
-std::vector< std::vector<Scalar> > make_grid(const ImageClass & img)
+std::vector< std::vector<Scalar> > make_grid(const ImageClass & img, bool isBinary = true)
 {
     int width = img.width(), height = img.height();
     std::vector< std::vector<Scalar> > grid(height, std::vector<Scalar>(width));
     for(int x = 0; x < width; x++)
-        for(int y = 0; y < height; y++)
-            grid[y][x] = (Scalar(qRed(img.pixel(x,y))) / 255.0); // change to approprate call
+        for(int y = 0; y < height; y++){
+            Scalar v = Scalar(qRed(img.pixel(x,y))) / 255.0;
+            if(isBinary) v = v > 0.5 ? 1 : 0;
+            grid[y][x] = v; // change to approprate call
+        }
     return grid;
 }
 
@@ -296,3 +299,56 @@ QPolygonF smoothPolygon( QPolygonF points, int iterations = 1 ){
     }
     return points;
 }
+
+// Basic splines
+template<typename VectorType>
+struct SimpleSpline{
+
+	double delta_t;
+	std::vector<VectorType> vp;
+
+	SimpleSpline(const std::vector<VectorType> & points) : vp(points){ delta_t = 1.0 / vp.size(); }
+
+	std::vector<VectorType> sampled(int num_samples)
+	{
+		std::vector<VectorType> samples;
+		for (int i = 0; i < num_samples; i++){
+			double t = double(i) / (num_samples-1);
+			samples.push_back(GetInterpolatedSplinePoint(t));
+		}
+		return samples;
+	}
+
+	// t = 0...1; 0=vp[0] ... 1=vp[max]
+	VectorType GetInterpolatedSplinePoint(double t)
+	{
+		// Find out in which interval we are on the spline
+		int p = (int)(t / delta_t);
+		// Compute local control point indices
+#define BOUNDS(pp) {if (pp < 0) pp = 0; else if (pp >= (int)vp.size() - 1) pp = vp.size() - 1; }
+		int p0 = p - 1;     BOUNDS(p0);
+		int p1 = p;         BOUNDS(p1);
+		int p2 = p + 1;     BOUNDS(p2);
+		int p3 = p + 2;     BOUNDS(p3);
+		// Relative (local) time
+		double lt = (t - delta_t*(double)p) / delta_t;
+		// Interpolate
+		return Eq(lt, vp[p0], vp[p1], vp[p2], vp[p3]);
+	}
+
+	// Static method for computing the Catmull-Rom parametric equation
+	// given a time (t) and a vector quadruple (p1,p2,p3,p4).
+	VectorType Eq(double t, const VectorType& p1, const VectorType& p2, const VectorType& p3, const VectorType& p4)
+	{
+		double t2 = t * t;
+		double t3 = t2 * t;
+
+		double b1 = .5 * (-t3 + 2 * t2 - t);
+		double b2 = .5 * (3 * t3 - 5 * t2 + 2);
+		double b3 = .5 * (-3 * t3 + 4 * t2 + t);
+		double b4 = .5 * (t3 - t2);
+
+		return (p1*b1 + p2*b2 + p3*b3 + p4*b4);
+	}
+};
+
